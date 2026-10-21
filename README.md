@@ -9,6 +9,10 @@ Every single Law (`Law 1` to `Law 48`, plus the Book Preface and Grand Finale) i
 
 ---
 
+## 🎬 Reference video
+
+[Watch or download the silent 8-second fire scene (720p MP4)](video/Prehistoric_Fire_Reference_8s_720p.mp4). This is a high-resolution edit of the scene in the supplied GIF, **not newly generated animation**. The original English/Chinese on-screen subtitles remain. See [source and MIT attribution](video/SOURCE_AND_LICENSE.md).
+
 ## 📂 Repository Structure
 
 - **`The_48_Laws_of_Power_Master_Deep_Audiobook.mp3`** — Complete 1-File Master Audiobook (~75 Minutes Non-Stop, Preface + Laws 1–48 + Grand Finale)

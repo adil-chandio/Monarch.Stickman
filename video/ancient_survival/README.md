@@ -2,7 +2,20 @@
 
 [Watch the finished 1080 × 1920 MP4](../Ancient_Survival_Easy_Urdunglish_30s_Reel.mp4).
 
-A new portrait-format illustrated explainer about **how prehistoric people survived**. It uses original generated storybook illustrations, an animated caveperson, moving camera, caption beats, fire/stone/forest effects, a user-selected narrator, and an original procedural music-and-foley mix. **No footage or audio from the fire reference clip is reused.** The caveperson sprite comes from this repository's earlier original wheel cartoon.
+A portrait-format illustrated explainer about **how prehistoric people survived**, built as a real character-animation piece rather than a slideshow of painted scenes. The backgrounds are empty illustration plates; the cast is a separate pose rig that the renderer walks, bends, kneels, leans and lights in every shot. It uses a user-selected narrator plus an original procedural music-and-foley mix. **No footage or audio from the fire reference clip is reused.** The running caveperson in the opening is this repository's earlier original wheel-cartoon sprite.
+
+## Character animation system
+
+| Element | File | How it moves on screen |
+| --- | --- | --- |
+| Empty plates | `assets/bg_clearing.png`, `bg_camp.png`, `bg_path.png`, `bg_mudbank.png`, `scene_night.png` | Camera push-in, pan, handheld sway and a slow Ken-Burns drift; no baked-in characters |
+| Lookout rig | `assets/sheet_lookout.png` (stand, walk A, walk B, knapping) | Scanning stance, one confident step, alternating stride, strike recoil |
+| Berry-picker rig | `assets/sheet_woman.png` + `sheet_pick.png` | Loop of reach-high / reach-low picking with body sway and falling berries |
+| Elder rig | `assets/sheet_elder.png` | Walk cycle while crossing with firewood, kneeling hand-warming with hand rub |
+| Campfire rig | `assets/sheet_lookout_sit.png`, `sheet_woman_sit.png` | Seated lookout poking the fire, woman turning food on a stick, both in a slow idle |
+| Running hook | `../assets/caveperson_run.png` | Bolting character with speed dust and camera-side entry |
+
+`sprites.py` slices each sheet into equal cells, keys the white background to transparency, trims the cell, and scales the poses of a sheet by **one shared factor** so a character never "breathes" in size between poses. Every paste is anchored on the feet baseline, which is what makes the generated two-pose walk cycles read as continuous motion. Night scenes re-tint the same rig instead of using separate art.
 
 ## Story and factual framing
 
@@ -23,7 +36,7 @@ python3 video/ancient_survival/render_reel.py --frame-at 16 --frame-output /tmp/
 
 `render_reel.py` creates exactly 720 frames at 24 fps (30.00 s), with portrait 1080 × 1920 H.264 video and a 48 kHz stereo AAC track. `compose_audio.py` synthesizes the original D-minor score, percussion, wind, footsteps, stone chips, crackling fire and transition whooshes, ducks the music under `narration.wav`, and masters the mix to a safe peak. Temporary render files stay in `_build/` and are ignored by Git.
 
-The visual scenes are in `assets/`. Captions are timed to the actual pauses in the approved narrator's WAV; all timing, shot motion, caption copy and fades can be adjusted in `render_reel.py`.
+Captions are timed to the actual pauses in the approved narrator's WAV; shot framing, walk phase, character placement, fire timing and caption copy all live in `render_reel.py`, and the rig helpers live in `sprites.py`. Camera framing is deliberately chosen so that every character's feet stay above the caption band (`CAPTION_Y`).
 
 ## Font credit
 

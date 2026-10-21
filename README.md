@@ -11,7 +11,7 @@ Every single Law (`Law 1` to `Law 48`, plus the Book Preface and Grand Finale) i
 
 ## 🎬 Videos
 
-- [**Ancient Survival — 30-second Easy Urdunglish reel**](video/Ancient_Survival_Easy_Urdunglish_30s_Reel.mp4): new 9:16 illustrated explainer with Roman Urdu/English captions, narrated audio, original background music and synchronized sound effects. See [production notes and re-render steps](video/ancient_survival/README.md).
+- [**Ancient Survival — 30-second Easy Urdunglish reel**](video/Ancient_Survival_Easy_Urdunglish_30s_Reel.mp4): new 9:16 illustrated explainer with a walk-cycle character rig (animated cast, not static scenes), Roman Urdu/English captions, narrated audio, and an original score with synchronized sound effects. See [production notes and re-render steps](video/ancient_survival/README.md).
 - [**Gol Pahiye Ka Kamaal — 10-second original cartoon**](video/Gol_Pahiye_Ka_Kamaal_10s_Silent.mp4): a new silent 720p prehistoric comedy about a rolling wooden disc, with animated characters, moving props, and English/Roman Urdu on-screen subtitles. The illustrations and animation are newly made for this short; it does not reuse frames from the reference video.
 - [**Reference fire scene — 8-second silent edit**](video/Prehistoric_Fire_Reference_8s_720p.mp4): high-resolution edit of the scene in the supplied GIF, **not newly generated animation**. The English/Chinese captions remain. See [source and MIT attribution](video/SOURCE_AND_LICENSE.md).
 

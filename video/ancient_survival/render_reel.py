@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """Render the 30-second, vertical Ancient Survival Easy Urdunglish reel.
 
-The edit uses original illustrated scenes, motion graphics, character animation,
-beat-synced captions and an original procedural score/SFX mix. No frames from
-the reference video are reused. Run from anywhere after installing requirements:
+This version animates real characters: an illustrated sprite rig supplies
+walk-cycle poses, a berry-picking loop, a knapping strike, a pointing beat and
+seated campfire poses, which the renderer times, bobs, leans and lights. The
+backgrounds themselves are empty plates, so no character is ever a frozen part
+of a painting. All illustrations, motion, music and SFX are generated for this
+project; nothing is taken from the reference video.
 
     python3 -m pip install -r video/ancient_survival/requirements.txt
     python3 video/ancient_survival/render_reel.py
 
-For art direction checks:
+    # Art-direction check of a single frame:
     python3 video/ancient_survival/render_reel.py --frame-at 16 --frame-output /tmp/fire.png
 """
 
@@ -22,21 +25,22 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from compose_audio import create_mix
+from sprites import ASSETS, load_rig, put, shaded, shadow
 
 HERE = Path(__file__).resolve().parent
 REPO_VIDEO = HERE.parent
-ASSETS = HERE / "assets"
 FONTS = HERE / "fonts"
 BUILD = HERE / "_build"
 FINAL = REPO_VIDEO / "Ancient_Survival_Easy_Urdunglish_30s_Reel.mp4"
 W, H, FPS, DURATION = 1080, 1920, 24, 30
-OVER = (1220, 2166)  # overscan permits smooth handheld/Ken-Burns camera moves
+PLATE = (1220, 2166)  # overscan used for background parallax and zooms
 CREAM = (255, 246, 220)
 GOLD = (255, 187, 93)
 INK = (34, 29, 32)
+CAPTION_Y = 1497
 
 
 @dataclass(frozen=True)
@@ -44,27 +48,25 @@ class Scene:
     start: float
     end: float
     image: str
-    x0: int
-    x1: int
-    y0: int
-    y1: int
+    zoom: float
+    centre0: tuple[int, int]
+    centre1: tuple[int, int]
 
 
 SCENES = [
-    Scene(0.00, 6.40, "night", 100, 34, 100, 72),
-    Scene(6.40, 11.50, "group", 50, 102, 170, 133),
-    Scene(11.50, 13.35, "tools", 38, 105, 138, 193),
-    Scene(13.35, 14.92, "tracking", 104, 62, 132, 178),
-    Scene(14.92, 18.48, "fire", 62, 93, 226, 205),
-    Scene(18.48, 22.67, "journey", 42, 106, 169, 144),
-    Scene(22.67, 25.50, "group", 100, 56, 134, 175),
-    Scene(25.50, 27.65, "journey", 106, 51, 144, 184),
-    Scene(27.65, 30.00, "fire", 93, 58, 205, 224),
+    Scene(0.00, 6.40, "night", 1.00, (604, 980), (620, 1030)),
+    Scene(6.40, 11.50, "clearing", 1.00, (610, 1040), (596, 1080)),
+    Scene(11.50, 13.35, "clearing", 1.42, (600, 1440), (612, 1470)),
+    Scene(13.35, 14.92, "mudbank", 1.10, (610, 1300), (624, 1330)),
+    Scene(14.92, 18.48, "camp", 1.62, (566, 1330), (566, 1306)),
+    Scene(18.48, 22.67, "path", 1.12, (700, 1180), (612, 1200)),
+    Scene(22.67, 25.50, "clearing", 1.12, (620, 1180), (600, 1216)),
+    Scene(25.50, 27.65, "path", 1.22, (600, 1240), (648, 1232)),
+    Scene(27.65, 30.00, "camp", 1.62, (566, 1326), (566, 1298)),
 ]
 CUTS = [scene.start for scene in SCENES[1:]]
 
-# Captions track the chosen voice's actual phrase pauses (measured from the WAV),
-# not a loose estimate from word count. The last 2.3s is a music-only resolution.
+# Timings follow the chosen narrator's real pauses, measured in his WAV.
 CAPTIONS = [
     (0.00, 1.73, "RAAT KA", "JUNGLE..."),
     (1.73, 3.58, "NA PHONE.", "NA SAFE GHAR."),
@@ -80,6 +82,8 @@ CAPTIONS = [
     (25.50, 27.65, "PLANNING", "+ EK DOOSRE KA SAATH"),
     (27.65, 30.00, "SAATH = SURVIVAL", "MONARCHVOICE"),
 ]
+BERRY_BEATS = [8.4 + i * 0.62 for i in range(6)] + [23.5, 24.1, 24.7]
+STRICKES = (11.63, 12.02, 12.55, 12.96, 13.18)
 
 
 def ease(x: float) -> float:
@@ -87,20 +91,10 @@ def ease(x: float) -> float:
     return x * x * (3 - 2 * x)
 
 
-def keyed_sprite(path: Path, height: int) -> Image.Image:
-    src = Image.open(path).convert("RGB")
-    r, g, b = src.split()
-    low = ImageChops.darker(r, ImageChops.darker(g, b))
-    high = ImageChops.lighter(r, ImageChops.lighter(g, b))
-    d = ImageOps.invert(low)
-    sat = ImageChops.subtract(high, low)
-    alpha = ImageChops.lighter(
-        d.point([max(0, min(255, round((v - 11) * 255 / 19))) for v in range(256)]),
-        sat.point([max(0, min(255, round((v - 8) * 255 / 15))) for v in range(256)]),
-    )
-    src.putalpha(alpha)
-    src = src.crop(alpha.getbbox())
-    return src.resize((round(src.width * height / src.height), height), Image.Resampling.LANCZOS)
+def punch(x: float) -> float:
+    """Fast-out, slow-settle easing for snappy character accents."""
+    x = min(1.0, max(0.0, x))
+    return 1 - (1 - x) ** 3
 
 
 def font_for(text: str, wanted: int, max_width: int, black: bool = True) -> ImageFont.FreeTypeFont:
@@ -141,177 +135,374 @@ def vignette() -> Image.Image:
     overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(overlay)
     for y in range(H):
-        bottom = ease((y - 1190) / 570) * 173
-        top = (1 - ease(y / 390)) * 98
+        bottom = ease((y - 1150) / 600) * 186
+        top = (1 - ease(y / 390)) * 96
         a = round(max(top, bottom))
         if a:
             d.line((0, y, W, y), fill=(18, 15, 21, a), width=1)
     return overlay
 
 
-def glow() -> Image.Image:
-    size = 760
+def glow(size: int = 780) -> Image.Image:
     layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    for r in range(370, 18, -4):
-        a = round((1 - r / 385) ** 1.45 * 55)
+    for r in range(size // 2 - 8, 18, -4):
+        a = round((1 - r / (size / 2)) ** 1.5 * 46)
         if a:
             d.ellipse((size // 2 - r, size // 2 - r,
                        size // 2 + r, size // 2 + r),
-                      fill=(255, 140, 49, a))
+                      fill=(255, 146, 52, a))
     return layer
+
+
+def flame_tongue(d: ImageDraw.ImageDraw, cx: float, base_y: float, width: float,
+                 height: float, sway: float, colour: tuple[int, int, int]) -> None:
+    """A solid teardrop flame built from stacked ellipses along a curved spine."""
+    steps = 13
+    for k in range(steps):
+        u = k / (steps - 1)
+        y = base_y - height * u
+        x = cx + sway * (u ** 1.6)
+        r = width * (1 - u) ** 0.72 * (0.55 + 0.45 * math.sin(math.pi * u) ** 0.4)
+        if r < 0.8:
+            continue
+        d.ellipse((x - r, y - r * 1.35, x + r, y + r * 0.75), fill=colour + (255,))
+
+
+def fire(im: Image.Image, cx: float, cy: float, t: float, scale: float = 1.0,
+         glow_layer: Image.Image | None = None) -> None:
+    """Stylised hand-drawn campfire: glow, crossed logs, layered flame, embers."""
+    if glow_layer is not None:
+        g = glow_layer.copy()
+        pulse = 0.72 + 0.26 * math.sin(t * 9.3) + 0.09 * math.sin(t * 21)
+        g.putalpha(g.getchannel("A").point(lambda a: min(255, round(a * pulse))))
+        size = round(g.width * scale)
+        g = g.resize((size, size), Image.Resampling.BILINEAR)
+        im.paste(g, (round(cx - size / 2), round(cy - size / 2)), g.getchannel("A"))
+    d = ImageDraw.Draw(im, "RGBA")
+    # two crossed logs with rounded ends, drawn behind the flame
+    for angle, colour, width in ((-0.13, (78, 49, 31), 26), (0.16, (108, 70, 43), 24)):
+        dx, dy = math.cos(angle) * 104 * scale, math.sin(angle) * 104 * scale
+        d.line((cx - dx, cy + 26 * scale - dy, cx + dx, cy + 26 * scale + dy),
+               fill=colour + (255,), width=round(width * scale))
+        for sign in (-1, 1):
+            ex, ey = cx + sign * dx, cy + 26 * scale + sign * dy
+            r = width * scale / 2
+            d.ellipse((ex - r, ey - r, ex + r, ey + r), fill=colour + (255,))
+    flame_tongue(d, cx, cy + 30 * scale, 42 * scale, 128 * scale,
+                 -10 * scale, (206, 87, 32))
+    outer = 5
+    for i in range(outer):
+        phase = t * (4.6 + i * 0.55) + i * 2.1
+        flame_tongue(d, cx + (i - (outer - 1) / 2) * 15 * scale, cy + 26 * scale,
+                     (21 + 6 * math.sin(phase)) * scale,
+                     (104 + 30 * math.sin(phase * 0.9 + 1)) * scale,
+                     14 * math.sin(phase * 0.8 + i) * scale, (243, 132, 40))
+    for i in range(4):
+        phase = t * (5.7 + i * 0.5) + i * 1.7
+        flame_tongue(d, cx + (i - 1.5) * 12 * scale, cy + 24 * scale,
+                     (13 + 4 * math.sin(phase)) * scale,
+                     (70 + 22 * math.sin(phase * 1.1)) * scale,
+                     10 * math.sin(phase + i) * scale, (255, 182, 64))
+    for i in range(3):
+        phase = t * (6.9 + i * 0.6) + i
+        flame_tongue(d, cx + (i - 1) * 9 * scale, cy + 22 * scale,
+                     (8 + 2.5 * math.sin(phase)) * scale,
+                     (38 + 14 * math.sin(phase * 1.3)) * scale,
+                     6 * math.sin(phase) * scale, (255, 238, 184))
+    for j in range(14):
+        drift = (t * (72 + j % 5 * 14) + j * 63) % (340 * scale)
+        x = cx + sway_of(j, t) * (drift / (340 * scale))
+        y = cy - 40 * scale - drift
+        r = (1.8 + j % 3) * scale
+        alpha = round(206 * (1 - drift / (340 * scale)) ** 1.5)
+        d.ellipse((x - r, y - r, x + r, y + r),
+                  fill=(255, 186 + j % 3 * 16, 92, alpha))
+    for j in range(4):
+        drift = (t * (42 + j * 8) + j * 137) % (430 * scale)
+        r = (15 + drift * 0.07) * scale
+        x = cx + 38 * math.sin(t * 0.7 + j) * scale
+        y = cy - 110 * scale - drift
+        d.ellipse((x - r, y - r * 0.8, x + r, y + r * 0.8),
+                  fill=(104, 96, 104, round(46 * (1 - drift / (430 * scale)))))
+
+
+def sway_of(j: int, t: float) -> float:
+    return 60 * math.sin(t * 1.4 + j * 2.7)
 
 
 class Reel:
     def __init__(self) -> None:
         self.plates = {
-            key: ImageOps.fit(Image.open(ASSETS / f"scene_{key}.png").convert("RGB"),
-                              OVER, method=Image.Resampling.LANCZOS)
-            for key in ("night", "group", "tools", "tracking", "fire", "journey")
+            key: ImageOps.fit(Image.open(ASSETS / f"{prefix}.png").convert("RGB"),
+                              PLATE, method=Image.Resampling.LANCZOS)
+            for key, prefix in (("night", "scene_night"), ("clearing", "bg_clearing"),
+                                ("camp", "bg_camp"), ("path", "bg_path"),
+                                ("mudbank", "bg_mudbank"))
         }
-        self.runner = keyed_sprite(REPO_VIDEO / "assets" / "caveperson_run.png", 445)
-        # Purple-slate lighting integrates the original sprite into this night plate.
-        alpha = self.runner.getchannel("A")
-        tinted = Image.blend(self.runner.convert("RGB"),
-                             Image.new("RGB", self.runner.size, (45, 44, 58)), 0.28)
-        tinted.putalpha(alpha)
-        self.runner = tinted
+        rig = load_rig()
+        self.lookout = rig["lookout"]
+        self.woman = rig["woman"]
+        self.pick = rig["pick"]
+        self.elder = rig["elder"]
+        self.sit = rig["lookout_sit"]
+        self.woman_sit = rig["woman_sit"]
+
+        runner = Image.open(REPO_VIDEO / "assets" / "caveperson_run.png").convert("RGB")
+        from sprites import key_white
+
+        runner = key_white(runner)
+        height = 560
+        runner = runner.resize((round(runner.width * height / runner.height), height),
+                               Image.Resampling.LANCZOS)
+        self.runner = shaded(runner, (44, 42, 62), 0.30)
+
+        self.night_lookout = {k: shaded(v, (40, 42, 72), 0.34) for k, v in self.lookout.items()}
+        self.night_woman = {k: shaded(v, (42, 42, 74), 0.35) for k, v in self.woman.items()}
+        self.night_pick = {k: shaded(v, (42, 42, 74), 0.35) for k, v in self.pick.items()}
+        self.night_elder = {k: shaded(v, (40, 42, 72), 0.33) for k, v in self.elder.items()}
+        self.night_sit = {k: shaded(v, (62, 50, 64), 0.13, warm=0.30) for k, v in self.sit.items()}
+        self.night_woman_sit = {k: shaded(v, (64, 51, 64), 0.12, warm=0.32)
+                                for k, v in self.woman_sit.items()}
+
         self.captions = [caption_patch(a, b, i == len(CAPTIONS) - 1)
                          for i, (_, _, a, b) in enumerate(CAPTIONS)]
         self.vignette = vignette()
         self.fire_glow = glow()
         self.tag_font = ImageFont.truetype(str(FONTS / "BarlowCondensed-Bold.ttf"), 36)
-        self.hook_font1 = ImageFont.truetype(str(FONTS / "BarlowCondensed-Black.ttf"), 157)
-        self.hook_font2 = ImageFont.truetype(str(FONTS / "BarlowCondensed-Black.ttf"), 153)
+        self.hook1 = ImageFont.truetype(str(FONTS / "BarlowCondensed-Black.ttf"), 157)
+        self.hook2 = ImageFont.truetype(str(FONTS / "BarlowCondensed-Black.ttf"), 153)
 
+    # ---------------------------------------------------------------- camera
     def scene(self, t: float) -> tuple[Image.Image, Scene]:
         info = next((s for s in SCENES if s.start <= t < s.end), SCENES[-1])
         p = ease((t - info.start) / (info.end - info.start))
-        x = round(info.x0 + (info.x1 - info.x0) * p)
-        y = round(info.y0 + (info.y1 - info.y0) * p)
-        # Momentary impact shudder during hand-knapped flint closeups.
-        if info.image == "tools":
-            for beat in (11.63, 12.02, 12.55, 12.96):
-                if 0 <= t - beat < 0.08:
-                    x += round(4 * math.sin(117 * t))
-                    y += round(3 * math.cos(129 * t))
-        x = max(0, min(OVER[0] - W, x))
-        y = max(0, min(OVER[1] - H, y))
-        return self.plates[info.image].crop((x, y, x + W, y + H)), info
+        cx = info.centre0[0] + (info.centre1[0] - info.centre0[0]) * p
+        cy = info.centre0[1] + (info.centre1[1] - info.centre0[1]) * p
+        # A gentle handheld drift keeps even the quietest shot alive.
+        cx += 7 * math.sin(t * 0.63)
+        cy += 5 * math.sin(t * 0.47 + 1.1)
+        ww, wh = W / info.zoom, H / info.zoom
+        x = round(min(PLATE[0] - ww, max(0.0, cx - ww / 2)))
+        y = round(min(PLATE[1] - wh, max(0.0, cy - wh / 2)))
+        plate = self.plates[info.image]
+        crop = plate.crop((x, y, round(x + ww), round(y + wh)))
+        return crop.resize((W, H), Image.Resampling.LANCZOS), info
 
-    def night_motion(self, im: Image.Image, t: float) -> None:
-        d = ImageDraw.Draw(im, "RGBA")
-        # Moonlit wind and a running caveperson give real motion to the hook shot.
-        for i in range(9):
-            x = ((i * 174 + t * (34 + i % 3 * 13)) % 1320) - 100
-            y = 750 + (i * 171) % 650
-            d.arc((x - 100, y - 10, x + 80, y + 20), 170, 345,
-                  fill=(224, 219, 207, 36), width=2)
-        x = -565 + 241 * t
-        if -self.runner.width < x < W:
-            y = round(1488 + 7 * math.sin(14 * t))
-            d.ellipse((x + 80, 1467, x + self.runner.width - 64, 1507),
-                      fill=(12, 10, 18, 51))
-            im.paste(self.runner, (round(x), y - self.runner.height),
-                     self.runner.getchannel("A"))
-        # Subtle flash early on punctuates the opening impact, without inventing a fire.
-        flash = max(0.0, 1 - abs(t - 0.28) / 0.12)
-        if flash:
-            d.rectangle((0, 0, W, H), fill=(202, 198, 206, round(58 * flash)))
+    # ------------------------------------------------------------- animation
+    def walk(self, rig: dict, x: float, foot_y: float, phase: float,
+             scale: float = 1.0, angle: float = 0.0, step: float = 0.5) -> None:
+        """Alternate the two painted stride poses with a weight-shift bob."""
+        cycle = phase % 1.0
+        pose = "walkB" if cycle >= step else "walkA"
+        bob = 9 * abs(math.sin(math.pi * (cycle / step if cycle < step
+                                          else (cycle - step) / (1 - step))))
+        lean = angle + 2.2 * math.sin(2 * math.pi * phase)
+        put(self.frame_im, rig[pose], x, foot_y - bob, angle=lean, scale=scale)
 
-    @staticmethod
-    def group_motion(im: Image.Image, t: float, callback: bool = False) -> None:
-        d = ImageDraw.Draw(im, "RGBA")
-        p = ease((t - (22.67 if callback else 8.18)) / 0.5)
-        if p <= 0:
+    def draw_clearing(self, t: float, callback: bool = False) -> None:
+        im = self.frame_im
+        if callback:
+            shadow(im, 300, 1392, 215)
+            shadow(im, 640, 1444, 225)
+            shadow(im, 874, 1450, 195)
+            sway = 1.5 * math.sin(t * 1.4)
+            put(im, self.lookout["stand"], 300, 1392, angle=sway, scale=1.20)
+            point = 1.0 + 0.03 * math.sin(t * 3.1)
+            put(im, self.woman["point"], 640, 1444, angle=-1.2, scale=1.16 * point)
+            # the elder has arrived with firewood; she shuffles a half-step on the spot
+            phase = ((t - 22.67) * 1.35) % 1.0
+            pose = "walkB" if phase >= 0.5 else "walkA"
+            put(im, self.elder[pose], 874 + 8 * math.sin(t * 1.2),
+                1450 - 5 * abs(math.sin(math.pi * phase)),
+                angle=1.6 * math.sin(t * 1.7), scale=1.10)
             return
-        # Two ink-sketch cues guide the eye: lookout, then shared food gathering.
-        for x, y, r in ((555, 570, 85), (765, 1050, 73), (305, 1360, 76)):
-            a = round(p * (82 + 20 * math.sin(t * 4 + x)))
-            d.arc((x - r, y - r, x + r, y + r), 205, 490,
-                  fill=(255, 193, 95, a), width=4)
-        if not callback:
-            for i in range(5):
-                xx = 733 + i * 24 + 7 * math.sin(t * 4 + i)
-                yy = 1080 + i * 17 + 10 * math.cos(t * 3.2 + i)
-                d.ellipse((xx, yy, xx + 5, yy + 5), fill=(255, 210, 125, 134))
-
-    @staticmethod
-    def tools_motion(im: Image.Image, t: float) -> None:
+        shadow(im, 250, 1390, 215)
+        shadow(im, 934, 1436, 225)
+        shadow(im, 300, 1486, 200)
+        # lookout scans the treeline, then takes one confident step forward
+        step_out = punch((t - 9.55) / 0.55)
+        lx = 250 + 36 * step_out
+        if step_out <= 0:
+            put(im, self.lookout["stand"], lx, 1390, angle=1.6 * math.sin(t * 1.25),
+                scale=1.20)
+        else:
+            phase = ((t - 9.55) * 2.1) % 1.0
+            pose = "walkB" if phase >= 0.5 else "walkA"
+            put(im, self.lookout[pose], lx, 1390 - 6 * abs(math.sin(math.pi * phase)),
+                angle=1.6 * math.sin(t * 1.25), scale=1.20)
+        # berry picking loop: reach high, reach low, body sway, berries fall
+        beat = (t - 6.4) % 1.24
+        pose = "pickHigh" if beat < 0.62 else "pickLow"
+        bend = 2.0 + 2.8 * math.sin(math.pi * min(1.0, beat / 0.62))
+        put(im, self.pick[pose], 934, 1436, angle=bend, scale=1.16)
         d = ImageDraw.Draw(im, "RGBA")
-        for j, beat in enumerate((11.63, 12.02, 12.55, 12.96, 13.15)):
+        for i in range(3):
+            age = ((t - 6.4) * 0.9 + i / 3) % 1.0
+            bx = 934 + 92 + 10 * math.sin(t * 3 + i)
+            by = 1300 + 140 * age
+            d.ellipse((bx, by, bx + 7, by + 7), fill=(58, 40, 76, round(210 * (1 - age))))
+        # the elder crosses the clearing carrying firewood
+        if t >= 7.35:
+            p = ease((t - 7.35) / 4.0)
+            ex = 80 + 250 * p
+            phase = ((t - 7.35) * 1.75) % 1.0
+            if p < 1.0:
+                pose_e = "walkB" if phase >= 0.5 else "walkA"
+                put(im, self.elder[pose_e], ex,
+                    1486 - 6 * abs(math.sin(math.pi * phase)), angle=1.2, scale=1.06)
+            else:
+                put(im, self.elder["walkA"], ex, 1486, angle=0.8, scale=1.06)
+
+    def draw_tools(self, t: float) -> None:
+        im = self.frame_im
+        d = ImageDraw.Draw(im, "RGBA")
+        # a hide spread of finished flakes and a fresh core beside the worker
+        mat = [(300, 1352), (392, 1322), (506, 1316), (620, 1300), (724, 1302),
+               (806, 1318), (846, 1362), (786, 1392), (662, 1400), (540, 1394),
+               (412, 1398), (330, 1384)]
+        d.polygon(mat, fill=(147, 111, 74, 236))
+        d.line(mat + [mat[0]], fill=(66, 47, 33, 255), width=4, joint="curve")
+        for fx, fy, sc in ((352, 1362, 1.05), (432, 1380, 0.9), (508, 1354, 0.95),
+                           (700, 1352, 1.1), (766, 1378, 0.85)):
+            d.polygon([(fx, fy - 20 * sc), (fx + 34 * sc, fy + 2 * sc),
+                       (fx + 6 * sc, fy + 20 * sc), (fx - 26 * sc, fy + 4 * sc)],
+                      fill=(176, 168, 152, 255), outline=(62, 54, 46, 255))
+            d.line((fx - 4, fy - 10 * sc, fx + 16 * sc, fy + 8 * sc),
+                   fill=(120, 113, 100, 255), width=2)
+        strike = max((math.exp(-(t - s) / 0.085) for s in STRICKES if t >= s), default=0.0)
+        shadow(im, 552, 1424, 330, alpha=90)
+        put(im, self.lookout["work"], 552 - 6 * strike, 1424 - 8 * strike,
+            angle=-2.0 * strike, scale=1.30)
+        for j, beat in enumerate(STRICKES):
             age = t - beat
-            if 0 < age < 0.38:
-                for k in range(5):
-                    angle = (j * 0.8 + k * 1.6)
-                    dist = 18 + 165 * age * (0.5 + k / 7)
-                    x = 561 + dist * math.cos(angle)
-                    y = 837 + dist * math.sin(angle) + 240 * age * age
-                    radius = max(1, round(6 - age * 10))
-                    d.polygon([(x, y - radius), (x + radius, y + radius),
-                               (x - radius, y + radius)],
-                              fill=(255, 209, 126, round(175 * (1 - age / 0.38))))
-        # Tiny parallax glint follows the worked blade edge.
-        glint = 0.55 + 0.45 * math.sin(18 * t)
-        d.line((542, 779, 587, 746), fill=(255, 234, 184, round(100 * glint)), width=3)
+            if 0 < age < 0.34:
+                for k in range(6):
+                    angle = j * 0.9 + k * 1.45
+                    dist = 22 + 250 * age * (0.45 + k / 6)
+                    x = 626 + dist * math.cos(angle)
+                    y = 1246 + dist * math.sin(angle) + 520 * age * age
+                    r = max(1, round(7 - age * 12))
+                    d.polygon([(x, y - r), (x + r, y + r), (x - r, y + r)],
+                              fill=(255, 219, 150, round(190 * (1 - age / 0.34))))
+        glint = 0.5 + 0.5 * math.sin(17 * t)
+        d.line((620, 1216, 664, 1180), fill=(255, 240, 200, round(120 * glint)), width=4)
 
-    @staticmethod
-    def tracking_motion(im: Image.Image, t: float) -> None:
+    def draw_mudbank(self, t: float) -> None:
+        im = self.frame_im
         d = ImageDraw.Draw(im, "RGBA")
-        p = ease((t - 13.52) / 0.52)
-        if p:
-            # A transient trail connects the hoofprints to the distant deer.
-            for i in range(7):
-                a = p * (i / 7)
-                x = 465 - 130 * a
-                y = 1460 - 675 * a
-                d.ellipse((x - 4, y - 4, x + 4, y + 4),
-                          fill=(255, 196, 104, round(176 * p)))
+        # wet mud at the water's edge, with fresh cloven hoof tracks pressed in
+        for mx, my, mrx, mry in ((566, 1340, 118, 44), (690, 1356, 104, 38),
+                                 (792, 1330, 80, 32)):
+            d.ellipse((mx - mrx, my - mry, mx + mrx, my + mry), fill=(98, 68, 47, 168))
+        for hx, hy in ((556, 1332), (626, 1352), (700, 1336), (764, 1348), (808, 1318)):
+            for side in (-1, 1):
+                ox = hx + side * 10
+                d.ellipse((ox - 8, hy - 14, ox + 8, hy + 14), fill=(54, 34, 24, 255))
+                d.ellipse((ox - 5, hy - 9, ox + 5, hy + 9), fill=(80, 53, 36, 255))
+            for side in (-1, 1):
+                ox = hx + side * 13
+                d.ellipse((ox - 4, hy + 18, ox + 4, hy + 25), fill=(54, 34, 24, 255))
+        shadow(im, 286, 1442, 265)
+        shadow(im, 886, 1430, 215)
+        put(im, self.lookout["work"], 286, 1442, angle=1.0 * math.sin(t * 1.1), scale=1.22)
+        reach = punch((t - 13.55) / 0.45)
+        put(im, self.woman["point"], 886, 1430, angle=-1.6 - 2.6 * reach,
+            scale=1.14 + 0.02 * reach)
+        p = punch((t - 13.55) / 0.55)
+        for i in range(7):
+            a = p * (i / 7.0)
+            x = 900 - 300 * a
+            y = 1220 + 40 * a
+            d.ellipse((x - 4, y - 4, x + 4, y + 4),
+                      fill=(255, 196, 104, round(186 * p)))
 
-    def fire_motion(self, im: Image.Image, t: float, ending: bool = False) -> None:
-        intensity = 0.76 + 0.24 * math.sin(21 * t)
-        warm = self.fire_glow.copy()
-        warm.putalpha(warm.getchannel("A").point(lambda a: round(a * intensity)))
-        im.paste(warm, (W // 2 - 380, 1075), warm.getchannel("A"))
+    def draw_camp(self, t: float, ending: bool = False) -> None:
+        im = self.frame_im
+        # lookout sits behind the fire, occasionally poking the embers
+        shadow(im, 590, 1214, 250, alpha=96)
+        sitting = "tend" if 15.35 < t < 16.15 or 16.95 < t < 17.5 or t > 28.15 else "sit"
+        put(im, self.night_sit[sitting], 590, 1218,
+            angle=1.2 * math.sin(t * 1.6), scale=1.18)
+        fire(im, 496, 1382, t, 1.42, self.fire_glow)
+        # the woman kneels at the fire turning food on a stick
+        turn = "turnB" if math.sin(t * 2.4) > 0 else "turnA"
+        shadow(im, 806, 1402, 270, alpha=88)
+        put(im, self.night_woman_sit[turn], 806, 1406, angle=1.0 * math.sin(t * 1.9),
+            scale=1.18)
+        # the elder warms her hands, both palms rubbing together slowly
+        rub = 1.8 * math.sin(t * 5.2)
+        shadow(im, 214, 1410, 255, alpha=88)
+        put(im, self.night_elder["warm"], 214 + rub, 1414,
+            angle=1.4 * math.sin(t * 1.35), scale=1.20)
         d = ImageDraw.Draw(im, "RGBA")
-        for j in range(18):
-            drift = (t * (63 + j % 5 * 10) + j * 79) % 385
-            x = 532 + 115 * math.sin(t * 0.8 + j * 3.57) * (drift / 385)
-            y = 1449 - drift
-            r = 2 + j % 3
-            alpha = round(196 * (1 - drift / 385) ** 1.4)
-            d.ellipse((x - r, y - r, x + r, y + r),
-                      fill=(255, 184 + j % 3 * 14, 72, alpha))
+        flicker = 0.5 + 0.5 * math.sin(t * 7.4)
+        for box, base in (((330, 1020, 700, 1230), 26), ((672, 1180, 940, 1340), 22),
+                          ((96, 1200, 350, 1360), 20)):
+            d.ellipse(box, fill=(255, 154, 74, round(base + 12 * flicker)))
         if ending:
-            for j in range(8):
-                x = (90 + 121 * j + 15 * math.sin(t * 1.5 + j))
-                y = 620 + (j * 131) % 520
+            for j in range(10):
+                x = 110 + 96 * j + 14 * math.sin(t * 1.4 + j)
+                y = 700 + (j * 137) % 470
                 d.ellipse((x - 2, y - 2, x + 2, y + 2),
-                          fill=(255, 215, 137, 116))
+                          fill=(255, 217, 142, 128))
 
-    @staticmethod
-    def journey_motion(im: Image.Image, t: float) -> None:
+    def draw_path(self, t: float, tight: bool = False) -> None:
+        im = self.frame_im
+        base = 25.5 if tight else 18.48
+        p = ease((t - base) / (2.15 if tight else 4.2))
+        drift = (40 if tight else 66) * p
+        trio = [
+            (self.lookout, 452 + drift, 1362, 1.20, 0.0),
+            (self.woman, 648 + drift, 1396, 1.16, 0.33),
+            (self.elder, 822 + drift, 1434, 1.10, 0.62),
+        ]
         d = ImageDraw.Draw(im, "RGBA")
-        for j in range(11):
-            x = (j * 174 + t * 36) % 1260 - 90
-            y = 1080 + (j * 105) % 520
-            d.arc((x - 18, y - 6, x + 34, y + 8), 180, 355,
-                  fill=(85, 75, 62, 57), width=2)
-        for j in range(4):
-            phase = (t * 2.1 + j * 0.46) % 1
-            x = 474 + j * 88 - phase * 58
-            y = 1495 - phase * 33
-            r = 5 + 12 * phase
-            d.ellipse((x - r, y - r / 2, x + r, y + r / 2),
-                      fill=(181, 154, 113, round(76 * (1 - phase))))
+        for rig, x, fy, sc, offset in trio:
+            shadow(im, x, fy - 4, 196 * sc, alpha=58)
+            phase = ((t - base) * 1.9 + offset) % 1.0
+            pose = "walkB" if phase >= 0.5 else "walkA"
+            bob = 10 * abs(math.sin(math.pi * (phase / 0.5 if phase < 0.5
+                                               else (phase - 0.5) / 0.5)))
+            put(im, rig[pose], x, fy - bob,
+                angle=1.5 * math.sin(2 * math.pi * phase + offset), scale=sc)
+            if phase > 0.42:
+                age = (phase - 0.42) / 0.3
+                r = 8 + 24 * age
+                d.ellipse((x - 66 - r, fy - r / 2, x - 66 + r, fy + r / 2),
+                          fill=(196, 162, 114, round(88 * (1 - age))))
 
-    def title(self, im: Image.Image, t: float, scene: Scene) -> None:
+    # ---------------------------------------------------------------- plates
+    def background_motion(self, im: Image.Image, key: str, t: float) -> None:
         d = ImageDraw.Draw(im, "RGBA")
-        # Small editorial header; never placed in the top app-control row.
+        if key in ("night", "camp"):
+            for i in range(8):
+                x = ((i * 174 + t * (26 + i % 3 * 11)) % 1320) - 120
+                y = 700 + (i * 181) % 520
+                d.arc((x - 100, y - 10, x + 72, y + 18), 172, 344,
+                      fill=(226, 220, 208, 34), width=2)
+        if key == "clearing":
+            for i in range(5):
+                gx = 130 + i * 210 + 16 * math.sin(t * 0.8 + i)
+                d.arc((gx - 26, 1580 - i * 12, gx + 30, 1602 - i * 12), 186, 352,
+                      fill=(120, 96, 62, 66), width=3)
+        if key == "path":
+            for i in range(9):
+                x = (i * 150 - t * 26) % 1240
+                d.arc((x - 22, 1520 + (i * 47) % 260, x + 30, 1536 + (i * 47) % 260),
+                      182, 352, fill=(150, 118, 78, 62), width=2)
+        if key == "mudbank":
+            shimmer = 0.5 + 0.5 * math.sin(t * 2.2)
+            d.line((150, 1690, 640, 1666), fill=(196, 226, 236, round(48 + 40 * shimmer)),
+                   width=3)
+
+    # --------------------------------------------------------------- overlay
+    def title(self, t: float) -> None:
+        im = self.frame_im
+        d = ImageDraw.Draw(im, "RGBA")
         d.text((60, 111), "MONARCHVOICE  /  SURVIVAL FILE 01",
                font=self.tag_font, fill=(255, 226, 171, 234),
                stroke_width=2, stroke_fill=(21, 20, 23, 190))
-        # Story progress indicator also creates a visual forward pull.
         d.rounded_rectangle((60, 178, 1018, 185), radius=3, fill=(255, 246, 220, 80))
         d.rounded_rectangle((60, 178, 60 + max(7, round(958 * t / DURATION)), 185),
                             radius=3, fill=GOLD + (235,))
@@ -320,8 +511,8 @@ class Reel:
             if fade > 0:
                 layer = Image.new("RGBA", (W, 560), (0, 0, 0, 0))
                 ld = ImageDraw.Draw(layer)
-                text_center(ld, "KYA TUM", 12, self.hook_font1, CREAM + (255,), 6)
-                text_center(ld, "BACH PATE?", 163, self.hook_font2, GOLD + (255,), 6)
+                text_center(ld, "KYA TUM", 12, self.hook1, CREAM + (255,), 6)
+                text_center(ld, "BACH PATE?", 163, self.hook2, GOLD + (255,), 6)
                 layer.putalpha(layer.getchannel("A").point(lambda a: round(a * fade)))
                 im.paste(layer, (0, 318 + round(24 * (1 - fade))), layer.getchannel("A"))
         elif 6.40 <= t < 8.35:
@@ -343,17 +534,16 @@ class Reel:
             layer.putalpha(layer.getchannel("A").point(lambda a: round(a * fade)))
             im.paste(layer, (0, 312), layer.getchannel("A"))
 
-    def caption(self, im: Image.Image, t: float) -> None:
+    def caption(self, t: float) -> None:
+        im = self.frame_im
         for i, (start, end, _, _) in enumerate(CAPTIONS):
             if start <= t < end:
-                # The caption is a rhythmic punch-in, then breathes before the cut.
-                fade = min(1.0, (t - start) / 0.16, (end - t) / 0.14)
-                fade = max(0.0, ease(fade))
+                fade = max(0.0, ease(min(1.0, (t - start) / 0.16, (end - t) / 0.14)))
                 patch = self.captions[i]
                 if fade < 0.999:
                     patch = patch.copy()
                     patch.putalpha(patch.getchannel("A").point(lambda a: round(a * fade)))
-                im.paste(patch, (0, 1437 + round(26 * (1 - fade))),
+                im.paste(patch, (0, CAPTION_Y + round(26 * (1 - fade))),
                          patch.getchannel("A"))
                 break
 
@@ -365,31 +555,56 @@ class Reel:
                 power = (1 - distance / 0.115) ** 1.5
                 d = ImageDraw.Draw(im, "RGBA")
                 d.rectangle((0, 0, W, H), fill=(250, 222, 172, round(165 * power)))
-                # One rough diagonal ink sweep mimics turning a storybook page.
                 x = ((t - cut + 0.115) / 0.23) * (W + 400) - 220
                 d.polygon([(x - 145, 0), (x - 102, 0), (x + 150, H),
                            (x + 106, H)], fill=(85, 62, 48, round(72 * power)))
                 break
 
+    def night_hook(self, t: float) -> None:
+        im = self.frame_im
+        d = ImageDraw.Draw(im, "RGBA")
+        x = -520 + 250 * t
+        if -self.runner.width < x < W:
+            y = round(1520 + 8 * math.sin(14 * t))
+            shadow(im, x + self.runner.width / 2, y, 230, alpha=70)
+            put(im, self.runner, x + self.runner.width / 2, y,
+                angle=2.4 * math.sin(13 * t))
+        for i in range(4):
+            age = ((t * 1.6 + i / 4) % 1.0)
+            if age < 0.5:
+                px = x + 40 - age * 120
+                py = 1516 - age * 24
+                r = 14 + 46 * age
+                d.ellipse((px - r, py - r / 2, px + r, py + r / 2),
+                          fill=(190, 182, 176, round(52 * (1 - age * 2))))
+        _ = d
+
     def frame(self, t: float) -> Image.Image:
-        im, scene = self.scene(t)
-        if scene.image == "night":
-            self.night_motion(im, t)
-        elif scene.image == "group":
-            self.group_motion(im, t, callback=t >= 22.67)
-        elif scene.image == "tools":
-            self.tools_motion(im, t)
-        elif scene.image == "tracking":
-            self.tracking_motion(im, t)
-        elif scene.image == "fire":
-            self.fire_motion(im, t, ending=t >= 27.65)
-        elif scene.image == "journey":
-            self.journey_motion(im, t)
-        im.paste(self.vignette, (0, 0), self.vignette.getchannel("A"))
-        self.transition(im, t)
-        self.title(im, t, scene)
-        self.caption(im, t)
-        return im
+        crop, info = self.scene(t)
+        self.frame_im = crop
+        self.background_motion(crop, info.image, t)
+
+        if info.image == "night":
+            self.night_hook(t)
+        elif info.image == "clearing":
+            if 6.40 <= t < 11.50:
+                self.draw_clearing(t)
+            elif t < 13.35:
+                self.draw_tools(t)
+            else:
+                self.draw_clearing(t, callback=True)
+        elif info.image == "mudbank":
+            self.draw_mudbank(t)
+        elif info.image == "camp":
+            self.draw_camp(t, ending=t >= 27.65)
+        elif info.image == "path":
+            self.draw_path(t, tight=t >= 25.5)
+
+        crop.paste(self.vignette, (0, 0), self.vignette.getchannel("A"))
+        self.transition(crop, t)
+        self.title(t)
+        self.caption(t)
+        return crop
 
 
 def ffmpeg() -> str:

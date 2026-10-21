@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MONARCHVOICE 3D - Stickman Next Level (20s • 16:9)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#05070a;color:#fff;font-family:'Space Grotesk',sans-serif;overflow:hidden}
+  /* Top Bar */
+  .topbar{position:fixed;top:0;left:0;right:0;height:56px;background:rgba(10,12,18,0.92);border-bottom:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:100}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-logo{width:36px;height:36px;background:linear-gradient(135deg,#FFD700,#FF8C00);border-radius:8px;display:grid;place-items:center;font-family:'Orbitron',sans-serif;font-weight:900;color:#000;font-size:14px;box-shadow:0 4px 20px rgba(255,215,0,0.4)}
+  .brand-text h1{font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:0.08em;font-weight:800}
+  .brand-text p{font-size:11px;opacity:0.6;letter-spacing:0.1em;margin-top:2px}
+  .meta{display:flex;align-items:center;gap:10px}
+  .pill{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);padding:6px 10px;border-radius:20px;font-size:12px;display:flex;align-items:center;gap:6px}
+  .pill b{font-family:'JetBrains Mono',monospace;color:#FFD700}
+  .live-dot{width:8px;height:8px;background:#ff2a2a;border-radius:50%;box-shadow:0 0 10px #ff2a2a;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+  /* Stage */
+  .stage{position:fixed;top:56px;left:0;right:0;bottom:88px;background:#020308;display:flex;align-items:center;justify-content:center;padding:12px}
+  .canvas-wrap{position:relative;width:min(100%, calc((100vh - 144px) * 16/9));aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08)}
+  #c{width:100%;height:100%;display:block}
+  /* Overlays */
+  .overlay{position:absolute;inset:0;pointer-events:none}
+  .vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.55) 100%);pointer-events:none}
+  .scanlines{position:absolute;inset:0;background:repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, transparent 1px, transparent 3px);pointer-events:none;opacity:0.4}
+  .corner{position:absolute;width:24px;height:24px;border-color:#FFD700;opacity:0.7}
+  .corner.tl{top:14px;left:14px;border-top:2px solid;border-left:2px solid;border-radius:8px 0 0 0}
+  .corner.tr{top:14px;right:14px;border-top:2px solid;border-right:2px solid;border-radius:0 8px 0 0}
+  .corner.bl{bottom:14px;left:14px;border-bottom:2px solid;border-left:2px solid;border-radius:0 0 0 8px}
+  .corner.br{bottom:14px;right:14px;border-bottom:2px solid;border-right:2px solid;border-radius:0 0 8px 0}
+  /* Timeline Text Overlays - synced via JS */
+  .hud-text{position:absolute;left:50%;transform:translateX(-50%);text-align:center;width:90%;pointer-events:none}
+  .hud-text h2{font-family:'Orbitron',sans-serif;font-weight:900;letter-spacing:0.1em;text-shadow:0 4px 30px rgba(0,0,0,0.9);line-height:1}
+  .hud-text p{font-size:13px;letter-spacing:0.15em;opacity:0.9;margin-top:6px;text-transform:uppercase}
+  #titleTop{top:18px}
+  #titleTop h2{font-size:clamp(14px,1.8vw,22px);color:#FFD700}
+  #titleCenter{top:50%;transform:translate(-50%,-50%)}
+  #titleCenter h2{font-size:clamp(22px,3.5vw,48px);color:#fff}
+  #titleBottom{bottom:22px}
+  #titleBottom h2{font-size:clamp(16px,2vw,28px);color:#fff}
+  .glitch{position:relative}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;clip-path:inset(0 0 0 0)}
+  .glitch::before{color:#ff3b30;transform:translateX(-1px);opacity:0.7;animation:glitch1 0.3s infinite}
+  .glitch::after{color:#00e5ff;transform:translateX(1px);opacity:0.7;animation:glitch2 0.3s infinite}
+  @keyframes glitch1{0%{clip-path:inset(20% 0 40% 0)}50%{clip-path:inset(60% 0 20% 0)}100%{clip-path:inset(10% 0 50% 0)}}
+  @keyframes glitch2{0%{clip-path:inset(50% 0 10% 0)}50%{clip-path:inset(10% 0 70% 0)}100%{clip-path:inset(30% 0 30% 0)}}
+  .rec-badge{position:absolute;top:12px;left:12px;background:rgba(255,42,42,0.95);color:#fff;padding:5px 10px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:11px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(255,42,42,0.4)}
+  .rec-badge i{width:8px;height:8px;background:#fff;border-radius:50%;display:inline-block;animation:blink 0.8s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+  .time-badge{position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.75);border:1px solid rgba(255,255,255,0.15);padding:6px 12px;border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:12px}
+  /* Controls */
+  .controls{position:fixed;bottom:0;left:0;right:0;height:88px;background:rgba(10,12,18,0.96);border-top:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(12px);display:flex;flex-direction:column;gap:8px;padding:10px 16px;z-index:100}
+  .progress-wrap{position:relative;height:8px;background:rgba(255,255,255,0.08);border-radius:20px;overflow:hidden;cursor:pointer}
+  .progress{height:100%;width:0%;background:linear-gradient(90deg,#FFD700,#FF6B00);border-radius:20px;transition:width 0.1s linear;box-shadow:0 0 12px rgba(255,215,0,0.5)}
+  .markers{position:absolute;inset:0;display:flex}
+  .marker{flex:1;border-right:1px solid rgba(0,0,0,0.3);opacity:0.5}
+  .marker:last-child{border:none}
+  .ctrl-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .left-ctrl{display:flex;align-items:center;gap:10px}
+  .btn{appearance:none;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:700;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;transition:all 0.2s}
+  .btn-primary{background:linear-gradient(135deg,#FFD700,#FF8C00);color:#000;box-shadow:0 6px 20px rgba(255,215,0,0.35)}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,215,0,0.5)}
+  .btn-ghost{background:rgba(255,255,255,0.06);color:#fff;border:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(6px)}
+  .btn-ghost:hover{background:rgba(255,255,255,0.1)}
+  .btn:active{transform:scale(0.98)}
+  .btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+  .right-info{display:flex;align-items:center;gap:12px;font-size:12px;opacity:0.85}
+  .fps{font-family:'JetBrains Mono',monospace;background:rgba(255,255,255,0.06);padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.08)}
+  .hint{font-size:11px;opacity:0.6;max-width:280px;line-height:1.4}
+  /* Mobile */
+  @media(max-width:800px){
+    .topbar{height:auto;padding:10px 12px;flex-wrap:wrap;gap:8px}
+    .meta{width:100%;justify-content:space-between}
+    .stage{top:84px;bottom:110px}
+    .controls{height:110px}
+    .ctrl-row{flex-wrap:wrap}
+    .hint{display:none}
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">MV</div>
+      <div class="brand-text">
+        <h1>MONARCHVOICE 3D STUDIO</h1>
+        <p>NEXT LEVEL STICKMAN • REALTIME WEBGL • 60FPS</p>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="pill"><span class="live-dot"></span> LIVE 3D</div>
+      <div class="pill">DURATION <b>20.0s</b></div>
+      <div class="pill">RATIO <b>16:9</b></div>
+      <div class="pill" style="background:rgba(255,215,0,0.12);border-color:rgba(255,215,0,0.3)">RES <b>1920×1080</b></div>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="canvas-wrap" id="wrap">
+      <canvas id="c"></canvas>
+      <div class="overlay">
+        <div class="vignette"></div>
+        <div class="scanlines"></div>
+        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+        <div class="rec-badge"><i></i> REC • 60FPS</div>
+        <div class="time-badge" id="timeBadge">00:00 / 00:20 • 16:9</div>
+
+        <div id="titleTop" class="hud-text" style="opacity:0"><h2 id="tTop"></h2><p id="pTop"></p></div>
+        <div id="titleCenter" class="hud-text" style="opacity:0"><h2 id="tCenter" class="glitch" data-text=""></h2><p id="pCenter"></p></div>
+        <div id="titleBottom" class="hud-text" style="opacity:0"><h2 id="tBottom"></h2><p id="pBottom"></p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="progress-wrap" id="progressWrap"><div class="progress" id="progress"></div><div class="markers"><div class="marker"></div><div class="marker"></div><div class="marker"></div><div class="marker"></div><div class="marker"></div></div></div>
+    <div class="ctrl-row">
+      <div class="left-ctrl">
+        <button class="btn btn-ghost" id="playBtn">▶ PLAY</button>
+        <button class="btn btn-ghost" id="restartBtn">↺ RESTART</button>
+        <button class="btn btn-primary" id="exportBtn">⬇ EXPORT 20s VIDEO (16:9)</button>
+        <span id="exportStatus" style="font-size:12px;opacity:0.8;font-family:'JetBrains Mono',monospace"></span>
+      </div>
+      <div class="right-info">
+        <span class="hint">Tip: Export WebM deta hai (60fps). VLC me MP4 me convert kar sakte ho. Direct MP4 ke liye ffmpeg.wasm load hoga.</span>
+        <div class="fps" id="fps">60 FPS</div>
+        <div class="fps" id="resInfo">1280×720</div>
+      </div>
+    </div>
+  </div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// --- Canvas & Renderer (16:9 enforced) ---
+const wrap = document.getElementById('wrap');
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+function resize(){
+  const rect = wrap.getBoundingClientRect();
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height); // already 16:9 via CSS
+  renderer.setSize(w, h, false);
+  camera.aspect = 16/9;
+  camera.updateProjectionMatrix();
+  document.getElementById('resInfo').textContent = `${w}×${h} • 16:9`;
+  // ensure canvas buffer matches
+  const dpr = renderer.getPixelRatio();
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+}
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020308);
+scene.fog = new THREE.Fog(0x0a0f1f, 18, 55);
+
+const camera = new THREE.PerspectiveCamera(42, 16/9, 0.1, 100);
+camera.position.set(0, 2.2, 9);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0,1,0);
+controls.minDistance = 3;
+controls.maxDistance = 16;
+controls.maxPolarAngle = Math.PI/2.05;
+controls.enabled = true;
+
+// Lights - cinematic
+scene.add(new THREE.HemisphereLight(0x8da2ff, 0x0a0a0a, 0.6));
+const dir = new THREE.DirectionalLight(0xfff4d6, 2.2);
+dir.position.set(6, 10, 4);
+dir.castShadow = true;
+dir.shadow.mapSize.set(2048,2048);
+dir.shadow.camera.near = 0.5; dir.shadow.camera.far = 30;
+dir.shadow.camera.left = -12; dir.shadow.camera.right = 12; dir.shadow.camera.top = 12; dir.shadow.camera.bottom = -12;
+dir.shadow.bias = -0.0005;
+scene.add(dir);
+const rim = new THREE.DirectionalLight(0x00e5ff, 1.0);
+rim.position.set(-5, 6, -6);
+scene.add(rim);
+const pointGold = new THREE.PointLight(0xffc300, 8, 18);
+pointGold.position.set(0, 2.2, 2);
+scene.add(pointGold);
+const pointRed = new THREE.PointLight(0xff2a2a, 6, 14);
+pointRed.position.set(2.5, 1.2, -1);
+scene.add(pointRed);
+
+// Ground - reflective + grid
+const groundGeo = new THREE.PlaneGeometry(60, 60);
+const groundMat = new THREE.MeshStandardMaterial({ color:0x0b0f1a, roughness:0.75, metalness:0.15 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+const grid = new THREE.GridHelper(60, 60, 0x1a2a4a, 0x12203a);
+grid.position.y = 0.02;
+scene.add(grid);
+
+// City Environment - procedural buildings
+const city = new THREE.Group();
+scene.add(city);
+function addBuilding(x,z,w,d,h, col, emissive){
+  const g = new THREE.BoxGeometry(w, h, d);
+  const m = new THREE.MeshStandardMaterial({ color:col, roughness:0.85, metalness:0.1, emissive: emissive||0x000000, emissiveIntensity: emissive?0.6:0 });
+  const mesh = new THREE.Mesh(g, m);
+  mesh.position.set(x, h/2, z);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  city.add(mesh);
+  // windows
+  if(h>2){
+    const winGeo = new THREE.PlaneGeometry(w*0.6, h*0.7);
+    const winMat = new THREE.MeshBasicMaterial({ color: emissive||0x223355, transparent:true, opacity:0.25, side:THREE.DoubleSide });
+    const win = new THREE.Mesh(winGeo, winMat);
+    win.position.set(x, h/2, z + d/2 + 0.02);
+    // face camera roughly - just front
+    city.add(win);
+  }
+}
+const palette = [0x0e162b, 0x121a33, 0x0f1b2f, 0x16213a];
+// generate city
+for(let i=0;i<28;i++){
+  const x = (Math.random()-0.5)*40;
+  const z = (Math.random()-0.5)*40 - 6; // behind
+  if(Math.abs(x)<3 && Math.abs(z)<3) continue;
+  const w = 1.2 + Math.random()*2.2;
+  const d = 1.2 + Math.random()*2.2;
+  const h = 2 + Math.random()*8;
+  addBuilding(x,z,w,d,h, palette[i%palette.length], Math.random()>0.6? 0x1e3a5f: null);
+}
+for(let i=0;i<8;i++){
+  addBuilding(-10 + i*2.8, -12, 1.6, 1.6, 6 + Math.sin(i)*2, 0x0a1226, 0x162a4a);
+  addBuilding(-10 + i*2.8, 12, 1.6, 1.6, 5 + Math.cos(i)*1.5, 0x0a1226, null);
+}
+// Neon floor line
+const lineGeo = new THREE.PlaneGeometry(40, 0.06);
+const lineMat = new THREE.MeshBasicMaterial({ color:0xffd700, transparent:true, opacity:0.9 });
+const line1 = new THREE.Mesh(lineGeo, lineMat); line1.rotation.x = -Math.PI/2; line1.position.set(0,0.03,0); scene.add(line1);
+const line2 = line1.clone(); line2.position.z = -0.6; line2.material = lineMat.clone(); line2.material.color.set(0x00e5ff); line2.material.opacity=0.7; scene.add(line2);
+// Volumetric light beams (fake with planes)
+function beam(x,z){
+  const g = new THREE.PlaneGeometry(0.8, 12);
+  const m = new THREE.MeshBasicMaterial({ color:0x00e5ff, transparent:true, opacity:0.07, side:THREE.DoubleSide, depthWrite:false });
+  const mesh = new THREE.Mesh(g,m);
+  mesh.position.set(x,6,z); mesh.rotation.y = Math.random()*Math.PI;
+  city.add(mesh);
+}
+beam(-3,-8); beam(4,-9); beam(0,-11);
+
+// --- Stickman Factory (Next Level 3D - volumetric, not 2D line) ---
+function createStickman(colorMain, colorAccent, isHero){
+  const group = new THREE.Group();
+  // Materials
+  const matBody = new THREE.MeshStandardMaterial({ color: colorMain, roughness:0.35, metalness:0.15, emissive: isHero?0x111111:0x000000 });
+  const matJoint = new THREE.MeshStandardMaterial({ color: colorAccent, roughness:0.3, metalness:0.4 });
+  const matHead = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness:0.2, metalness:0.05 });
+  const matOutline = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.18, side:THREE.BackSide });
+
+  // Helper to create limb with joint spheres
+  function limb(length, radius){
+    const g = new THREE.Group();
+    const cylGeo = new THREE.CylinderGeometry(radius, radius*0.85, length, 16);
+    const cyl = new THREE.Mesh(cylGeo, matBody);
+    cyl.position.y = -length/2;
+    cyl.castShadow = true; cyl.receiveShadow = true;
+    g.add(cyl);
+    const jointGeo = new THREE.SphereGeometry(radius*1.15, 16, 16);
+    const topJoint = new THREE.Mesh(jointGeo, matJoint); g.add(topJoint);
+    const botJoint = new THREE.Mesh(new THREE.SphereGeometry(radius*0.95,14,14), matJoint);
+    botJoint.position.y = -length;
+    g.add(botJoint);
+    // outline
+    const out = new THREE.Mesh(cylGeo, matOutline);
+    out.position.y = -length/2; out.scale.set(1.12,1,1.12);
+    g.add(out);
+    return g;
+  }
+
+  // Torso (capsule-like using cylinder + spheres)
+  const torsoH = 0.75; const torsoR = 0.22;
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(torsoR, torsoR*0.9, torsoH, 20), matBody);
+  torso.position.y = 0.9;
+  torso.castShadow = true;
+  group.add(torso);
+  const torsoTop = new THREE.Mesh(new THREE.SphereGeometry(torsoR,16,16), matBody); torsoTop.position.y = 0.9 + torsoH/2; group.add(torsoTop);
+  const torsoBot = new THREE.Mesh(new THREE.SphereGeometry(torsoR*0.9,16,16), matBody); torsoBot.position.y = 0.9 - torsoH/2; group.add(torsoBot);
+  // chest accent
+  const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.22,16), matJoint);
+  chest.position.set(0,1.05,0.16); chest.rotation.x = Math.PI/2; group.add(chest);
+
+  // Head
+  const headR = 0.28;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(headR, 24, 24), matHead);
+  head.position.y = 1.7; head.castShadow = true;
+  group.add(head);
+  // eyes (for villain red)
+  const eyeGeo = new THREE.SphereGeometry(0.055, 12,12);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: isHero?0x0a0a0a:0xff1a1a, emissive: isHero?0x000000:0xff1a1a, emissiveIntensity: isHero?0:1.2 });
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(-0.11,1.72,0.22); group.add(eyeL);
+  const eyeR = eyeL.clone(); eyeR.position.x = 0.11; group.add(eyeR);
+  // visor line for hero
+  if(isHero){
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28,0.04,0.02), new THREE.MeshStandardMaterial({color:0x111111}));
+    visor.position.set(0,1.69,0.26); group.add(visor);
+  }
+
+  // Arms
+  const armLen = 0.62;
+  const leftArm = limb(armLen, 0.07);
+  leftArm.position.set(-torsoR-0.02, 1.25, 0);
+  leftArm.name = 'leftArm';
+  group.add(leftArm);
+  const rightArm = limb(armLen, 0.07);
+  rightArm.position.set(torsoR+0.02, 1.25, 0);
+  rightArm.name = 'rightArm';
+  group.add(rightArm);
+
+  // Forearms (second segment)
+  const forearmLen = 0.52;
+  const leftFore = limb(forearmLen, 0.06);
+  leftFore.position.y = -armLen;
+  leftArm.add(leftFore); leftArm.userData.fore = leftFore;
+  const rightFore = limb(forearmLen, 0.06);
+  rightFore.position.y = -armLen;
+  rightArm.add(rightFore); rightArm.userData.fore = rightFore;
+
+  // Legs
+  const legLen = 0.68;
+  const leftLeg = limb(legLen, 0.09);
+  leftLeg.position.set(-0.14, 0.55, 0);
+  leftLeg.name = 'leftLeg';
+  group.add(leftLeg);
+  const rightLeg = limb(legLen, 0.09);
+  rightLeg.position.set(0.14, 0.55, 0);
+  rightLeg.name = 'rightLeg';
+  group.add(rightLeg);
+  const leftShin = limb(0.62, 0.08);
+  leftShin.position.y = -legLen;
+  leftLeg.add(leftShin); leftLeg.userData.shin = leftShin;
+  const rightShin = limb(0.62, 0.08);
+  rightShin.position.y = -legLen;
+  rightLeg.add(rightShin); rightLeg.userData.shin = rightShin;
+
+  // Cape for hero
+  if(isHero){
+    const capeGeo = new THREE.PlaneGeometry(0.6, 0.9, 6, 6);
+    const capeMat = new THREE.MeshStandardMaterial({ color:0xb80f2a, roughness:0.9, metalness:0.05, side:THREE.DoubleSide, transparent:true, opacity:0.95 });
+    const cape = new THREE.Mesh(capeGeo, capeMat);
+    cape.position.set(0,0.85,-0.24); cape.rotation.x = 0.15; cape.name='cape';
+    // displace vertices for wind
+    cape.geometry.translate(0,-0.15,0);
+    group.add(cape);
+  }
+
+  // Shadow catcher disc
+  const shadowDisc = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.25 }));
+  shadowDisc.rotation.x = -Math.PI/2; shadowDisc.position.y = 0.02;
+  group.add(shadowDisc);
+
+  // Attach refs for animation
+  group.userData = { leftArm, rightArm, leftLeg, rightLeg, head, torso, cape: group.getObjectByName('cape') };
+  group.castShadow = true;
+  return group;
+}
+
+const hero = createStickman(0xf5f5f5, 0xffc300, true);
+hero.position.set(-1.6, 0, 0);
+scene.add(hero);
+
+const villain = createStickman(0x0e0e14, 0xff2a2a, false);
+villain.position.set(2.4, 0, -0.2);
+villain.scale.set(1.08,1.08,1.08);
+villain.rotation.y = -0.6;
+scene.add(villain);
+
+// Impact ring effect
+const ringGeo = new THREE.RingGeometry(0.3, 0.45, 32);
+const ringMat = new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0, side:THREE.DoubleSide });
+const impactRing = new THREE.Mesh(ringGeo, ringMat);
+impactRing.rotation.x = -Math.PI/2; impactRing.position.y = 0.03;
+scene.add(impactRing);
+const ring2 = impactRing.clone(); ring2.material = ringMat.clone(); scene.add(ring2);
+
+// Particles
+const particleCount = 180;
+const pGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(particleCount*3);
+const pVel = new Float32Array(particleCount*3);
+for(let i=0;i<particleCount;i++){
+  pPos[i*3] = (Math.random()-0.5)*14;
+  pPos[i*3+1] = Math.random()*6+0.5;
+  pPos[i*3+2] = (Math.random()-0.5)*14;
+  pVel[i*3] = (Math.random()-0.5)*0.02;
+  pVel[i*3+1] = Math.random()*0.02;
+  pVel[i*3+2] = (Math.random()-0.5)*0.02;
+}
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+const pMat = new THREE.PointsMaterial({ color:0xffd700, size:0.05, transparent:true, opacity:0.6, sizeAttenuation:true, depthWrite:false });
+const particles = new THREE.Points(pGeo, pMat);
+scene.add(particles);
+
+// Hit sparks
+const sparkGeo = new THREE.BufferGeometry();
+const sparkCount = 60;
+const sPos = new Float32Array(sparkCount*3);
+const sVel = new Float32Array(sparkCount*3);
+for(let i=0;i<sparkCount;i++){ sPos[i*3+1]= -10 }
+sparkGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3));
+const sparkMat = new THREE.PointsMaterial({ color:0xffffff, size:0.09, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false });
+const sparks = new THREE.Points(sparkGeo, sparkMat);
+scene.add(sparks);
+
+// Timeline & Animation Logic (20 seconds)
+const DURATION = 20;
+let clock = new THREE.Clock();
+let elapsed = 0;
+let playing = true;
+let lastFpsTime = 0;
+let frameCount = 0;
+
+// Text helpers
+const tTopEl = document.getElementById('tTop'), pTopEl = document.getElementById('pTop');
+const tCenterEl = document.getElementById('tCenter'), pCenterEl = document.getElementById('pCenter');
+const tBottomEl = document.getElementById('tBottom'), pBottomEl = document.getElementById('pBottom');
+const titleTop = document.getElementById('titleTop');
+const titleCenter = document.getElementById('titleCenter');
+const titleBottom = document.getElementById('titleBottom');
+function setText(top, center, bottom){
+  // top: {h,p} or null, etc.
+  if(top){ tTopEl.textContent = top.h||''; pTopEl.textContent = top.p||''; titleTop.style.opacity = top.h?1:0; } else titleTop.style.opacity=0;
+  if(center){ tCenterEl.textContent = center.h||''; tCenterEl.dataset.text = center.h||''; pCenterEl.textContent = center.p||''; titleCenter.style.opacity = center.h?1:0; } else titleCenter.style.opacity=0;
+  if(bottom){ tBottomEl.textContent = bottom.h||''; pBottomEl.textContent = bottom.p||''; titleBottom.style.opacity = bottom.h?1:0; } else titleBottom.style.opacity=0;
+}
+
+function animateStickman(stick, t, phase){
+  const ud = stick.userData;
+  // breathing idle
+  const breath = Math.sin(t*2.2)*0.02;
+  stick.position.y = breath;
+  // slight bob for cape wind
+  if(ud.cape){
+    const pos = ud.cape.geometry.attributes.position;
+    for(let i=0;i<pos.count;i++){
+      const y = pos.getY(i);
+      const w = Math.sin(t*3 + y*4)*0.06 * (Math.abs(y)+0.2);
+      pos.setZ(i, w);
+    }
+    pos.needsUpdate = true;
+  }
+
+  if(phase==='idle'){
+    const walk = Math.sin(t*4);
+    ud.leftLeg.rotation.x = walk*0.18;
+    ud.rightLeg.rotation.x = -walk*0.18;
+    ud.leftLeg.userData.shin.rotation.x = Math.max(0, walk*0.4);
+    ud.rightLeg.userData.shin.rotation.x = Math.max(0, -walk*0.4);
+    ud.leftArm.rotation.x = -walk*0.25;
+    ud.rightArm.rotation.x = walk*0.25;
+    ud.leftArm.rotation.z = -0.15;
+    ud.rightArm.rotation.z = 0.15;
+  } else if(phase==='ready'){
+    ud.leftArm.rotation.x = -0.9; ud.leftArm.rotation.z = -0.6;
+    ud.rightArm.rotation.x = -0.9; ud.rightArm.rotation.z = 0.6;
+    ud.leftArm.userData.fore.rotation.x = -1.1;
+    ud.rightArm.userData.fore.rotation.x = -1.1;
+    ud.leftLeg.rotation.x = 0.1; ud.rightLeg.rotation.x = -0.15;
+  } else if(phase==='punch'){
+    const p = Math.sin(t*18); // fast
+    // simplified punch cycle will be driven by timeline directly
+  } else if(phase==='hit'){
+    stick.rotation.z = Math.sin(t*12)*0.12;
+    stick.position.x += Math.sin(t*30)*0.015;
+  }
+}
+
+let camTargets = [
+  { t:0, pos:[0,3.2,10], look:[0,0.8, -2], fov:42 },
+  { t:2, pos:[2.5,2.0,7], look:[0,1,0], fov:45 },
+  { t:5, pos:[-1,1.8,5.5], look:[0,1,0], fov:50 },
+  { t:8, pos:[0.5,2.5,6], look:[0,1,-0.5], fov:42 },
+  { t:12, pos:[1.2,1.4,3.8], look:[0.4,0.9,0], fov:55 },
+  { t:16, pos:[-2,2.2,7], look:[0,1,-1], fov:42 },
+  { t:19, pos:[0,3.5,9], look:[0,1,-1], fov:38 },
+];
+function getCam(t){
+  // find segment
+  for(let i=0;i<camTargets.length-1;i++){
+    const a=camTargets[i], b=camTargets[i+1];
+    if(t>=a.t && t<b.t){
+      const p = (t - a.t)/(b.t - a.t);
+      const ease = p<0.5? 2*p*p : -1+(4-2*p)*p; // easeInOut
+      return {
+        pos: [ a.pos[0]+(b.pos[0]-a.pos[0])*ease, a.pos[1]+(b.pos[1]-a.pos[1])*ease, a.pos[2]+(b.pos[2]-a.pos[2])*ease ],
+        look:[ a.look[0]+(b.look[0]-a.look[0])*ease, a.look[1]+(b.look[1]-a.look[1])*ease, a.look[2]+(b.look[2]-a.look[2])*ease ],
+        fov: a.fov + (b.fov - a.fov)*ease
+      };
+    }
+  }
+  const last = camTargets[camTargets.length-1];
+  return {pos:last.pos, look:last.look, fov:last.fov};
+}
+
+// Export / Recording
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+const exportBtn = document.getElementById('exportBtn');
+const exportStatus = document.getElementById('exportStatus');
+const playBtn = document.getElementById('playBtn');
+const restartBtn = document.getElementById('restartBtn');
+const progressEl = document.getElementById('progress');
+const progressWrap = document.getElementById('progressWrap');
+const timeBadge = document.getElementById('timeBadge');
+
+function formatTime(s){ const m=Math.floor(s/60), sec=Math.floor(s%60), ms=Math.floor((s%60 - Math.floor(s%60))*10); return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+
+function startRecording(){
+  if(isRecording) return;
+  // canvas capture stream at 60fps
+  const stream = canvas.captureStream(60);
+  // try mp4 via h264 if supported, else webm
+  let mime = 'video/webm;codecs=vp9';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm;codecs=vp8';
+  if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
+  // prefer mp4 if available (Chrome)
+  if(MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) mime='video/mp4;codecs=avc1';
+  recordedChunks = [];
+  mediaRecorder = new MediaRecorder(stream, { mimeType:mime, videoBitsPerSecond: 8000000 });
+  mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = ()=>{
+    const blob = new Blob(recordedChunks, {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const ext = mime.includes('mp4')?'mp4':'webm';
+    a.download = `MonarchVoice-3D-Stickman-20s-16x9-${Date.now()}.${ext}`;
+    a.click();
+    exportStatus.textContent = `✓ Saved ${ext.toUpperCase()} ${(blob.size/1024/1024).toFixed(2)}MB`;
+    exportBtn.disabled = false;
+    exportBtn.textContent = '⬇ EXPORT 20s VIDEO (16:9)';
+    isRecording = false;
+    // reset time badge color
+    timeBadge.style.background='rgba(0,0,0,0.75)';
+  };
+  mediaRecorder.start(100);
+  isRecording = true;
+  exportBtn.disabled = true;
+  exportBtn.textContent = '● RECORDING 20s...';
+  exportStatus.textContent = 'Recording... 0s / 20s';
+  timeBadge.style.background='rgba(255,42,42,0.9)';
+  // auto stop after DURATION, and also ensure we restart from 0 for clean export
+  elapsed = 0; playing = true;
+  setTimeout(()=>{ if(mediaRecorder && mediaRecorder.state==='recording') mediaRecorder.stop(); }, DURATION*1000 + 600);
+  // update status timer
+  let recStart = performance.now();
+  let iv = setInterval(()=>{
+    const sec = (performance.now()-recStart)/1000;
+    if(sec>=DURATION || !isRecording){ clearInterval(iv); return; }
+    exportStatus.textContent = `Recording... ${sec.toFixed(1)}s / 20.0s • ${mime.split(';')[0]}`;
+  }, 100);
+}
+
+exportBtn.addEventListener('click', startRecording);
+playBtn.addEventListener('click', ()=>{
+  playing = !playing;
+  playBtn.textContent = playing? '⏸ PAUSE' : '▶ PLAY';
+});
+restartBtn.addEventListener('click', ()=>{ elapsed=0; playing=true; playBtn.textContent='⏸ PAUSE'; });
+progressWrap.addEventListener('click', (e)=>{
+  const rect = progressWrap.getBoundingClientRect();
+  const p = (e.clientX-rect.left)/rect.width;
+  elapsed = p*DURATION;
+});
+
+function triggerImpact(pos, scale=1){
+  impactRing.position.set(pos.x, 0.04, pos.z);
+  impactRing.scale.set(0.2*scale,0.2*scale,1);
+  ringMat.opacity = 0.9;
+  ring2.position.set(pos.x, 0.06, pos.z);
+  ring2.scale.set(0.15*scale,0.15*scale,1);
+  ring2.material.opacity = 0.6;
+  // sparks
+  const base = new THREE.Vector3(pos.x, 1.1, pos.z);
+  for(let i=0;i<sparkCount;i++){
+    const ang = Math.random()*Math.PI*2;
+    const sp = 0.15 + Math.random()*0.3;
+    sVel[i*3] = Math.cos(ang)*sp + (Math.random()-0.5)*0.05;
+    sVel[i*3+1] = Math.random()*0.25 + 0.05;
+    sVel[i*3+2] = Math.sin(ang)*sp;
+    sPos[i*3] = base.x; sPos[i*3+1] = base.y; sPos[i*3+2] = base.z;
+  }
+  sparkGeo.attributes.position.needsUpdate = true;
+  sparkMat.opacity = 1;
+}
+
+function renderLoop(){
+  requestAnimationFrame(renderLoop);
+  const delta = clock.getDelta();
+  if(playing){
+    elapsed += delta;
+    if(elapsed > DURATION) elapsed = 0; // loop
+  }
+  const t = elapsed;
+
+  // progress UI
+  const pct = (t/DURATION)*100;
+  progressEl.style.width = pct+'%';
+  timeBadge.textContent = `${formatTime(t)} / 00:20 • 16:9 • ${isRecording?'REC':''}`;
+
+  // FPS
+  frameCount++;
+  if(performance.now() - lastFpsTime > 500){
+    const fps = Math.round(frameCount*2);
+    document.getElementById('fps').textContent = fps+' FPS';
+    frameCount=0; lastFpsTime=performance.now();
+  }
+
+  // Particles drift
+  const posAttr = pGeo.attributes.position;
+  for(let i=0;i<particleCount;i++){
+    pPos[i*3] += pVel[i*3]* delta*10;
+    pPos[i*3+1] += pVel[i*3+1]* delta*10;
+    pPos[i*3+2] += pVel[i*3+2]* delta*10;
+    if(pPos[i*3+1]>7){ pPos[i*3+1]=0.5; }
+    if(Math.abs(pPos[i*3])>12) pVel[i*3]*=-1;
+  }
+  posAttr.needsUpdate = true;
+  particles.rotation.y += delta*0.04;
+
+  // Sparks physics
+  if(sparkMat.opacity>0){
+    const sPosAttr = sparkGeo.attributes.position;
+    for(let i=0;i<sparkCount;i++){
+      sVel[i*3+1] -= 0.015; // gravity
+      sPos[i*3] += sVel[i*3];
+      sPos[i*3+1] += sVel[i*3+1];
+      sPos[i*3+2] += sVel[i*3+2];
+      sVel[i*3]*=0.98; sVel[i*3+2]*=0.98;
+    }
+    sPosAttr.needsUpdate = true;
+    sparkMat.opacity -= delta*1.2;
+    if(sparkMat.opacity<0) sparkMat.opacity=0;
+  }
+
+  // Ring fade
+  if(ringMat.opacity>0){
+    ringMat.opacity -= delta*1.6;
+    impactRing.scale.x += delta*2.2; impactRing.scale.y += delta*2.2;
+    if(ring2.material.opacity>0){
+      ring2.material.opacity -= delta*1.4;
+      ring2.scale.x += delta*2.8; ring2.scale.y += delta*2.8;
+    }
+  }
+
+  // Timeline directorial
+  // 0-2: intro city fly
+  // 2-5: hero entry from left, walk to center
+  // 5-8: hero idle, camera orbit, title appears
+  // 8-9.5: villain drop
+  // 9.5-12: faceoff
+  // 12-14.5: hero dodges + punch
+  // 14.5-16: slow-mo hit + sparks
+  // 16-19: villain down, hero victory pose
+  // 19-20: end card
+
+  if(t<2){
+    setText({h:'MONARCHVOICE PRESENTS',p:'A NEXT LEVEL 3D EXPERIENCE'}, null, null);
+    hero.position.x = -1.6 + (t/2)*0.9; // walk in
+    hero.position.z = Math.sin(t*3)*0.04;
+    animateStickman(hero, t, 'idle');
+    villain.position.y = 6 - (t<1?t*2:2); villain.visible = t>1.2;
+    villain.position.y = t<1.2? 8 : villain.position.y;
+    hero.rotation.y = 0.4;
+  } else if(t<5){
+    setText(null, {h:'THE STICKMAN',p:'REBORN IN 3D'}, {h:'20 SECONDS • 16:9 • 60FPS',p:'REALISTIC LIGHTING • PHYSICS • CINEMATIC CAMERA'});
+    const p = (t-2)/3;
+    hero.position.x = -0.7 + p*0.7; // to center
+    hero.position.z = 0;
+    hero.rotation.y = THREE.MathUtils.lerp(0.4, 0, p);
+    animateStickman(hero, t, 'idle');
+    villain.visible = false;
+  } else if(t<8){
+    setText({h:'CHAPTER I: THE CHALLENGE',p:'CITY NEVER SLEEPS'}, {h:'HERO AWAKENS',p:''}, null);
+    hero.position.set(0,0,0);
+    hero.rotation.y = Math.sin((t-5)*0.8)*0.18;
+    animateStickman(hero, t, 'idle');
+    // subtle camera already handled via camTargets
+    villain.visible = false;
+  } else if(t<9.5){
+    // villain drop
+    const p = (t-8)/1.5;
+    villain.visible = true;
+    villain.position.set(1.8, 8 - p*8, -0.2); // fall
+    villain.rotation.x = p*0.3;
+    hero.rotation.y = THREE.MathUtils.lerp(0, -0.7, p);
+    setText(null, {h:'VILLAIN ENTERS',p:'IMPACT INCOMING'}, null);
+    animateStickman(hero, t, 'ready');
+    animateStickman(villain, t, 'idle');
+    if(p>0.93 && ringMat.opacity<0.1) triggerImpact({x:1.8,z:-0.2}, 1.3);
+  } else if(t<12){
+    villain.position.set(1.3,0,-0.2);
+    villain.rotation.set(0,-0.6,0);
+    hero.position.set(0,0,0);
+    hero.rotation.y = -0.5;
+    setText(null, null, {h:'FACE OFF',p:'NEVER OUTSHINE THE MASTER — LAW 01'});
+    animateStickman(hero, t, 'ready');
+    animateStickman(villain, t, 'ready');
+    // tension shake
+    camera.position.x += Math.sin(t*60)*0.003;
+  } else if(t<14.5){
+    const p = (t-12)/2.5;
+    // hero dodge left then punch
+    hero.position.x = Math.sin(p*Math.PI)* -0.6;
+    hero.position.z = Math.sin(p*Math.PI*2)*0.45;
+    hero.rotation.y = THREE.MathUtils.lerp(-0.5, 0.9, p);
+    // punch animation
+    const punch = Math.sin(p*Math.PI*1.2 - 0.2);
+    hero.userData.rightArm.rotation.x = -0.4 - Math.max(0, Math.sin(p* Math.PI*2))*1.6;
+    hero.userData.rightArm.rotation.y = punch*0.8;
+    hero.userData.rightArm.userData.fore.rotation.x = -0.6 - Math.max(0, Math.sin(p*Math.PI*1.8))*1.2;
+    villain.position.x = 1.3 + p*0.2;
+    villain.rotation.y = -0.6 + p*0.3;
+    villain.rotation.z = p*0.15;
+    if(p>0.72 && p<0.76) triggerImpact({x:0.9,z:0.1}, 1.0);
+    setText(null, {h:p<0.5?'DODGE!':'COUNTER!',p:'SPEED × PRECISION'}, null);
+    // animate rest idle-ish
+    animateStickman(villain, t, 'idle');
+  } else if(t<16){
+    // slow motion hit
+    const p = (t-14.5)/1.5;
+    hero.position.set(0.35,0,0.15); hero.rotation.y = 0.7;
+    villain.position.set(1.6, -p*0.45, -0.2 - p*0.15);
+    villain.rotation.z = p*0.9; villain.rotation.x = p*0.4;
+    villain.userData.leftArm.rotation.x = -1.0 + p*0.5;
+    hero.userData.rightArm.rotation.x = -2.1; hero.userData.rightArm.userData.fore.rotation.x = -0.2;
+    setText({h:'SLOW MOTION IMPACT',p:'60FPS • MOTION BLUR • PARTICLES'}, null, null);
+    // slow camera push
+    pointGold.intensity = 8 + p*6;
+    sparkMat.color.setHSL(0.08 + p*0.05, 1, 0.6);
+  } else if(t<19){
+    hero.position.set(0,0,0); hero.rotation.set(0,0,0);
+    villain.position.set(2.1, -0.68, 0.1); villain.rotation.set(0,0,1.45); villain.rotation.x = 0.2;
+    // victory pose - arms up
+    const p = (t-16)/3;
+    hero.userData.leftArm.rotation.x = -2.2 + Math.sin(t*2)*0.05;
+    hero.userData.leftArm.rotation.z = -0.35;
+    hero.userData.rightArm.rotation.x = -2.2 + Math.sin(t*2+0.5)*0.05;
+    hero.userData.rightArm.rotation.z = 0.35;
+    hero.userData.leftArm.userData.fore.rotation.x = -0.3;
+    hero.userData.rightArm.userData.fore.rotation.x = -0.3;
+    hero.userData.leftLeg.rotation.x = 0; hero.userData.rightLeg.rotation.x = 0;
+    setText(null, {h:'VICTORY',p:'MONARCH RISES'}, {h:'LAW 01 COMPLETE',p:'NEVER OUTSHINE THE MASTER'});
+    pointGold.intensity = 9 + Math.sin(t*5)*1;
+  } else {
+    hero.position.set(0,0,0);
+    hero.rotation.y = (t-19)*0.4;
+    villain.position.set(2.1, -0.68, 0.1); villain.rotation.y += 0.01;
+    setText({h:'MONARCHVOICE 3D',p:'FULL SERIES COMING SOON'}, {h:'SUBSCRIBE',p:'NEXT LAW DROPS TOMORROW'}, {h:'MADE WITH THREE.JS • CINEMATIC 16:9',p:''});
+    // flicker gold light
+    pointGold.intensity = 10 + Math.random()*2;
+  }
+
+  // Camera update
+  const cam = getCam(t);
+  camera.position.lerp(new THREE.Vector3(...cam.pos), 0.06);
+  controls.target.lerp(new THREE.Vector3(...cam.look), 0.06);
+  camera.fov += (cam.fov - camera.fov)*0.06; camera.updateProjectionMatrix();
+  controls.update();
+
+  // Light color shift over time
+  const hue = (t*0.01)%1;
+  pointRed.color.setHSL(0.02,1,0.55);
+  pointGold.color.setHSL(0.12,1,0.6);
+
+  renderer.render(scene, camera);
+}
+
+resize();
+window.addEventListener('resize', resize);
+clock.start();
+renderLoop();
+
+// Auto hint for export
+setTimeout(()=>{ exportStatus.textContent='Ready to export • Click EXPORT for 20s 16:9 video'; }, 800);
+</script>
+</body>
+</html>

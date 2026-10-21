@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MONARCHVOICE — NEO PROTOCOL // 3D Short Film</title>
+<title>MONARCHVOICE — MOTION LAB // 30s Physics Explainer</title>
 <style>
   :root{
     --cyan:#5ae2ff; --crimson:#ff5a72; --ink:#05060a;
@@ -116,43 +116,44 @@
       <div class="mark"><span>M</span></div>
       <div>
         <b>MONARCHVOICE</b>
-        <i>NEO PROTOCOL — 3D SHORT FILM</i>
+        <i>MOTION LAB — 30s PHYSICS EXPLAINER</i>
       </div>
     </div>
     <div class="tags">
       <span class="tag">Full HD 1080p</span>
       <span class="tag">30 FPS</span>
-      <span class="tag">20 Sec</span>
-      <span class="tag">Original Score</span>
+      <span class="tag">30 Sec</span>
+      <span class="tag">Original Score</span><span class="tag">Urdu + English</span>
     </div>
   </header>
 
   <div class="stage">
-    <div class="badge"><span class="dot"></span> NOW PLAYING · NEO PROTOCOL</div>
-    <video id="film" controls playsinline preload="metadata" poster="film-thumb.jpg">
+    <div class="badge"><span class="dot"></span> NOW PLAYING · MOTION LAB</div>
+    <video id="film" controls playsinline preload="metadata" poster="film-thumb-v3.jpg">
+      <source src="MonarchVoice-MOTION-LAB-30s-1080p.mp4" type="video/mp4">
       <source src="MonarchVoice-NEO-PROTOCOL-1080p.mp4" type="video/mp4">
-      <source src="MonarchVoice-3D-Stickman-20s-16x9.mp4" type="video/mp4">
       Your browser does not support video playback.
     </video>
   </div>
 
   <div class="row">
-    <a class="btn primary" href="MonarchVoice-NEO-PROTOCOL-1080p.mp4" download>
-      ⬇ Download 1080p MP4
+    <a class="btn primary" href="MonarchVoice-MOTION-LAB-30s-1080p.mp4" download>
+      ⬇ Download 30s Explainer (1080p)
     </a>
-    <a class="btn" href="https://raw.githubusercontent.com/adil-chandio/Monarchvoice-/arena/270eaabc-monarchvoice/monarch-3d-studio/MonarchVoice-NEO-PROTOCOL-1080p.mp4" target="_blank" rel="noopener">
+    <a class="btn" href="https://raw.githubusercontent.com/adil-chandio/Monarchvoice-/arena/270eaabc-monarchvoice/monarch-3d-studio/MonarchVoice-MOTION-LAB-30s-1080p.mp4" target="_blank" rel="noopener">
       GitHub Raw Link
     </a>
+    <a class="btn" href="MonarchVoice-NEO-PROTOCOL-1080p.mp4" download>NEO PROTOCOL (20s)</a>
     <a class="btn" href="index.html">Interactive 3D Studio</a>
-    <a class="btn" href="generate_video_v2.py" target="_blank">Source Engine</a>
+    <a class="btn" href="generate_video_v3.py" target="_blank">Source Engine</a>
   </div>
 
   <div class="grid">
     <div class="cell"><small>Resolution</small><b>1920 × 1080 <em>16:9</em></b></div>
-    <div class="cell"><small>Frame Rate</small><b>30 FPS <em>600 frames</em></b></div>
+    <div class="cell"><small>Frame Rate</small><b>30 FPS <em>900 frames</em></b></div>
     <div class="cell"><small>Codec</small><b>H.264 <em>AAC audio</em></b></div>
-    <div class="cell"><small>Runtime</small><b>00:20 <em>exact</em></b></div>
-    <div class="cell"><small>Chapters</small><b>07 <em>acts</em></b></div>
+    <div class="cell"><small>Runtime</small><b>00:30 <em>exact</em></b></div>
+    <div class="cell"><small>Laws</small><b>04 <em>physics</em></b></div>
   </div>
 
   <h2>Chapter Timeline</h2>
@@ -166,16 +167,17 @@
 
 <script>
   const CH = [
-    [0.0,  "Cold Open",        "MONARCHVOICE STUDIOS"],
-    [0.8,  "Title Sequence",   "NEO PROTOCOL"],
-    [3.4,  "01 — The City",    "neon skyline · rain"],
-    [6.0,  "02 — Arrival",     "villain descends"],
-    [9.5,  "03 — Clash",       "first exchange"],
-    [11.2, "04 — Pressure",    "combo · counter"],
-    [13.6, "05 — Fall",        "hero down"],
-    [15.4, "06 — Finish",      "charged strike"],
-    [17.2, "07 — Monarch",     "victory"],
-    [19.0, "End Card",         "logo reveal"]
+    [0.0,  "Cold Open",         "THE PHYSICS OF ACTION"],
+    [1.2,  "Intro",             "4 laws · 30 seconds"],
+    [3.3,  "1 — Gravity",       "jump height ∝ v²"],
+    [6.6,  "1 — Gravity II",    "double speed = 4× height"],
+    [10.3, "2 — Momentum",      "heavy crate: 40 kg"],
+    [13.2, "2 — Momentum II",   "same force · light crate flies"],
+    [15.9, "3 — Action=Reaction","equal and opposite"],
+    [18.5, "3 — Impulse",       "small mass, big recoil"],
+    [21.5, "4 — Energy",        "PE → KE → launch"],
+    [25.6, "4 — Landing",       "conservation in action"],
+    [27.3, "Outro",             "MOTION MASTERED"]
   ];
   const v = document.getElementById('film');
   const box = document.getElementById('chapters');

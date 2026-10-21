@@ -524,7 +524,7 @@ def contact_shadow(target, cam, x, ground_y, scale, strength=1.0):
 
 def draw_figure(scene, emis, cam, x, y, scale, pose, facing, t, theme,
                 alpha=1.0, energy=0.0, phase=0.0, reflection=True,
-                body_only=False, ghost=False):
+                body_only=False, ghost=False, sx=1.0, sy=1.0, tint=None):
     """draw articulated stick figure. (x,y) = ground point under pelvis."""
     if alpha <= 0.02:
         return
@@ -539,8 +539,8 @@ def draw_figure(scene, emis, cam, x, y, scale, pose, facing, t, theme,
         J[_k] = J[_k] - np.array([0.0, foot_y], np.float32)
 
     def P(v, refl=False, extra=(0, 0)):
-        wx = base[0] + v[0] * scale + extra[0]
-        wy = base[1] + v[1] * scale + extra[1]
+        wx = base[0] + v[0] * scale * sx + extra[0]
+        wy = base[1] + v[1] * scale * sy + extra[1]
         sp = cam.apply(wx, wy)
         if refl:
             sp = cam.apply(wx, 2 * GROUND - wy)
@@ -549,6 +549,7 @@ def draw_figure(scene, emis, cam, x, y, scale, pose, facing, t, theme,
     th = max(2, int(scale * 0.085))
     if ghost:
         th = max(2, int(th * 0.85))
+    theme = np.array(tint if tint is not None else theme, np.float32)
     body = np.clip(theme * (0.55 if ghost else 1.0), 0, 255)
     dark = np.clip(DEEP * alpha, 0, 255)
 

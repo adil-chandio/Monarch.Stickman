@@ -18,7 +18,7 @@ import time
 import numpy as np
 import cv2
 
-import char_v5 as CH
+import char_v6 as CH
 
 FPS = 24
 DUR = 10.0
@@ -64,6 +64,32 @@ def w2s(x, y, z, cx, cy):
     return (W * 0.5 + (x - cx) * z, H * 0.5 + (y - cy) * z)
 
 
+# ---------------------------------------------------------------- depth
+# Foreground occluders cut from the plate itself, so props (the bistro table,
+# its chairs) pass IN FRONT of the character instead of behind him.
+CAFE_FG = [
+    # table top + pedestal + both chairs, in plate coordinates
+    [(1180, 640), (1900, 660), (1900, 760), (1330, 790), (1330, 1010),
+     (1290, 1010), (1290, 800), (1180, 720)],
+]
+
+
+def occlude(img, plate, polys, z, cx, cy):
+    """paste plate pixels inside the polygons back over the frame"""
+    M = np.float32([[z, 0, W * 0.5 - z * cx], [0, z, H * 0.5 - z * cy]])
+    warped = cv2.warpAffine(plate.img, M, (W, H), flags=cv2.INTER_LINEAR,
+                            borderMode=cv2.BORDER_REFLECT_101)
+    mask = np.zeros((H, W), np.uint8)
+    for poly in polys:
+        pts = np.array([[z * px + (W * 0.5 - z * cx),
+                         z * py + (H * 0.5 - z * cy)] for px, py in poly],
+                       np.int32)
+        cv2.fillPoly(mask, [pts], 255, cv2.LINE_AA)
+    # soften only a hair: the table edge is painted, not vector
+    mask = cv2.GaussianBlur(mask, (0, 0), 1.2)[..., None]
+    return (img * (1 - mask / 255.0) + warped * (mask / 255.0)).astype(np.uint8)
+
+
 def grade(img, vig=0.26, warm=1.02):
     out = img.astype(np.float32)
     out[..., 2] *= warm
@@ -87,8 +113,8 @@ def init():
 
 
 # plate coords: where the character stands in each shot
-CX0, GY0 = 1250.0, 1005.0      # cafe cobbles (shot 1 + 2)
-PX_IDLE = 1245.0               # standing spot for the close-up
+CX0, GY0 = 1150.0, 930.0       # cafe cobbles (shot 1 + 2)
+PX_IDLE = 1140.0               # standing spot for the close-up
 GY3 = 1000.0                   # street pavement (shot 3)
 
 
@@ -107,7 +133,7 @@ def frame(fi):
         walking = p < 1.0
         pose = CH.pose_walk(t, 1.05) if walking else CH.pose_idle(t)
         sx, sy = w2s(px, GY0, z, cam[0], cam[1])
-        CH.draw(img, sy, sx, 640 * z, pose, facing=1, t=t, mood="happy",
+        CH.draw(img, sy, sx, 88 * z, pose, facing=1, t=t, mood="happy",
                 blink_at=0.5)
         return grade(img)
 
@@ -126,8 +152,8 @@ def frame(fi):
         sx, sy = w2s(PX_IDLE, GY0, z, cam[0], cam[1])
         pose = CH.pose_idle(t)
         Jc = CH.fk(pose)
-        scale = 0.40 * H / (2 * CH.HEAD_R)       # head = 40% of frame height
-        sy = 0.33 * H - Jc["head"][1] * scale    # face in the upper third
+        scale = 0.40 * H / (2 * CH.HEAD_RX)      # head = 40% of frame height
+        sy = 0.34 * H - Jc["head"][1] * scale    # face in the upper third
         CH.draw(img, sy, sx, scale, pose, facing=1, t=t,
                 mood=mood, blink_at=1.5, cup=False)
         return grade(img, vig=0.20)
@@ -146,7 +172,7 @@ def frame(fi):
         pose["hipL"], pose["knL"] = 9, -5
         pose["hipR"], pose["knR"] = -9, -5
     sx, sy = w2s(px, GY3, z, camx, 560.0)
-    CH.draw(img, sy, sx, 505 * z, pose, facing=1, t=t, mood="happy",
+    CH.draw(img, sy, sx, 78 * z, pose, facing=1, t=t, mood="happy",
             blink_at=2.2)
     return grade(img)
 

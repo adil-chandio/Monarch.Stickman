@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MONARCHVOICE — NEO PROTOCOL // 3D Short Film</title>
+<style>
+  :root{
+    --cyan:#5ae2ff; --crimson:#ff5a72; --ink:#05060a;
+    --panel:rgba(255,255,255,.045); --line:rgba(255,255,255,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--ink);color:#e9eef7;
+    font-family:"Helvetica Neue",Inter,system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  body{overflow-x:hidden}
+  .glow{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(900px 500px at 12% 8%, rgba(90,226,255,.16), transparent 70%),
+      radial-gradient(800px 520px at 88% 14%, rgba(255,90,114,.14), transparent 70%),
+      radial-gradient(1200px 700px at 50% 108%, rgba(120,90,255,.16), transparent 72%);}
+  .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.055;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>")}
+  main{position:relative;z-index:2;max-width:1180px;margin:0 auto;
+    padding:38px 22px 90px}
+
+  /* ---------- header ---------- */
+  header{display:flex;align-items:center;justify-content:space-between;
+    gap:18px;flex-wrap:wrap;margin-bottom:26px}
+  .brand{display:flex;align-items:center;gap:13px}
+  .mark{width:42px;height:42px;border-radius:50%;position:relative;
+    border:2px solid var(--cyan);display:grid;place-items:center;
+    box-shadow:0 0 26px rgba(90,226,255,.5), inset 0 0 18px rgba(90,226,255,.25)}
+  .mark::after{content:"";position:absolute;inset:-7px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.14);border-top-color:var(--cyan);
+    animation:spin 9s linear infinite}
+  .mark span{font-weight:800;font-size:20px;letter-spacing:.5px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .brand b{display:block;font-size:15px;letter-spacing:5px;font-weight:700}
+  .brand i{display:block;font-style:normal;font-size:10.5px;letter-spacing:3.4px;
+    color:#8fa0b8;margin-top:3px}
+  .tags{display:flex;gap:8px;flex-wrap:wrap}
+  .tag{font-size:10.5px;letter-spacing:1.9px;text-transform:uppercase;
+    padding:7px 12px;border:1px solid var(--line);border-radius:999px;
+    color:#b9c6da;background:var(--panel)}
+
+  /* ---------- player ---------- */
+  .stage{position:relative;border-radius:18px;overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow:0 40px 90px -30px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.03),
+               0 0 90px -20px rgba(90,226,255,.25)}
+  .stage::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+    box-shadow:inset 0 0 120px rgba(0,0,0,.55)}
+  video{display:block;width:100%;aspect-ratio:16/9;background:#000}
+  .badge{position:absolute;top:14px;left:16px;z-index:3;display:flex;gap:8px;
+    align-items:center;font-size:10.5px;letter-spacing:2.2px;color:#dfe8f5;
+    background:rgba(6,8,14,.55);backdrop-filter:blur(8px);
+    border:1px solid var(--line);padding:7px 12px;border-radius:999px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#ff4d5e;
+    box-shadow:0 0 12px #ff4d5e;animation:blink 1.4s steps(2,end) infinite}
+  @keyframes blink{50%{opacity:.25}}
+
+  /* ---------- actions ---------- */
+  .row{display:flex;gap:11px;flex-wrap:wrap;margin-top:20px}
+  a.btn{display:inline-flex;align-items:center;gap:9px;text-decoration:none;
+    font-size:12px;letter-spacing:1.8px;text-transform:uppercase;font-weight:600;
+    padding:13px 20px;border-radius:11px;border:1px solid var(--line);
+    color:#eaf2ff;background:var(--panel);transition:.22s}
+  a.btn:hover{transform:translateY(-2px);border-color:rgba(90,226,255,.55);
+    background:rgba(90,226,255,.1);box-shadow:0 12px 34px -14px rgba(90,226,255,.7)}
+  a.btn.primary{background:linear-gradient(135deg,#5ae2ff,#7b8cff);
+    color:#04121a;border-color:transparent;font-weight:800}
+  a.btn.primary:hover{background:linear-gradient(135deg,#7ceaff,#96a4ff)}
+
+  /* ---------- meta grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:12px;margin-top:26px}
+  .cell{background:var(--panel);border:1px solid var(--line);border-radius:13px;
+    padding:15px 16px}
+  .cell small{display:block;font-size:10px;letter-spacing:2.4px;color:#8b9bb3;
+    text-transform:uppercase}
+  .cell b{display:block;margin-top:7px;font-size:17px;letter-spacing:.6px}
+  .cell b em{font-style:normal;font-size:11px;color:#93a3ba;letter-spacing:1.4px}
+
+  h2{font-size:11.5px;letter-spacing:4.4px;color:#9aabc2;font-weight:600;
+    margin:46px 0 16px;text-transform:uppercase}
+  h2::after{content:"";display:block;width:52px;height:2px;margin-top:11px;
+    background:linear-gradient(90deg,var(--cyan),transparent)}
+
+  /* ---------- chapters ---------- */
+  .chapters{display:grid;gap:9px}
+  .ch{display:grid;grid-template-columns:86px 1fr auto;gap:14px;align-items:center;
+    padding:13px 16px;border:1px solid var(--line);border-radius:12px;
+    background:var(--panel);cursor:pointer;transition:.2s}
+  .ch:hover{border-color:rgba(90,226,255,.4);background:rgba(90,226,255,.07);
+    transform:translateX(3px)}
+  .ch .t{font-variant-numeric:tabular-nums;font-size:12px;color:var(--cyan);
+    letter-spacing:1.4px;font-weight:600}
+  .ch .n{font-size:13.5px;letter-spacing:.4px}
+  .ch .d{font-size:10.5px;color:#8b9bb3;letter-spacing:1.6px}
+
+  footer{margin-top:52px;padding-top:22px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    font-size:11px;letter-spacing:1.7px;color:#7f8ea5}
+  @media(max-width:560px){
+    .brand b{font-size:13px;letter-spacing:3.6px}
+    a.btn{padding:11px 15px;font-size:11px}
+  }
+</style>
+</head>
+<body>
+<div class="glow"></div><div class="grain"></div>
+<main>
+  <header>
+    <div class="brand">
+      <div class="mark"><span>M</span></div>
+      <div>
+        <b>MONARCHVOICE</b>
+        <i>NEO PROTOCOL — 3D SHORT FILM</i>
+      </div>
+    </div>
+    <div class="tags">
+      <span class="tag">Full HD 1080p</span>
+      <span class="tag">30 FPS</span>
+      <span class="tag">20 Sec</span>
+      <span class="tag">Original Score</span>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="badge"><span class="dot"></span> NOW PLAYING · NEO PROTOCOL</div>
+    <video id="film" controls playsinline preload="metadata" poster="film-thumb.jpg">
+      <source src="MonarchVoice-NEO-PROTOCOL-1080p.mp4" type="video/mp4">
+      <source src="MonarchVoice-3D-Stickman-20s-16x9.mp4" type="video/mp4">
+      Your browser does not support video playback.
+    </video>
+  </div>
+
+  <div class="row">
+    <a class="btn primary" href="MonarchVoice-NEO-PROTOCOL-1080p.mp4" download>
+      ⬇ Download 1080p MP4
+    </a>
+    <a class="btn" href="https://raw.githubusercontent.com/adil-chandio/Monarchvoice-/arena/270eaabc-monarchvoice/monarch-3d-studio/MonarchVoice-NEO-PROTOCOL-1080p.mp4" target="_blank" rel="noopener">
+      GitHub Raw Link
+    </a>
+    <a class="btn" href="index.html">Interactive 3D Studio</a>
+    <a class="btn" href="generate_video_v2.py" target="_blank">Source Engine</a>
+  </div>
+
+  <div class="grid">
+    <div class="cell"><small>Resolution</small><b>1920 × 1080 <em>16:9</em></b></div>
+    <div class="cell"><small>Frame Rate</small><b>30 FPS <em>600 frames</em></b></div>
+    <div class="cell"><small>Codec</small><b>H.264 <em>AAC audio</em></b></div>
+    <div class="cell"><small>Runtime</small><b>00:20 <em>exact</em></b></div>
+    <div class="cell"><small>Chapters</small><b>07 <em>acts</em></b></div>
+  </div>
+
+  <h2>Chapter Timeline</h2>
+  <div class="chapters" id="chapters"></div>
+
+  <footer>
+    <span>MONARCHVOICE STUDIOS · PROCEDURAL 3D ENGINE V2</span>
+    <span>RENDERED IN-SANDBOX · NO GPU</span>
+  </footer>
+</main>
+
+<script>
+  const CH = [
+    [0.0,  "Cold Open",        "MONARCHVOICE STUDIOS"],
+    [0.8,  "Title Sequence",   "NEO PROTOCOL"],
+    [3.4,  "01 — The City",    "neon skyline · rain"],
+    [6.0,  "02 — Arrival",     "villain descends"],
+    [9.5,  "03 — Clash",       "first exchange"],
+    [11.2, "04 — Pressure",    "combo · counter"],
+    [13.6, "05 — Fall",        "hero down"],
+    [15.4, "06 — Finish",      "charged strike"],
+    [17.2, "07 — Monarch",     "victory"],
+    [19.0, "End Card",         "logo reveal"]
+  ];
+  const v = document.getElementById('film');
+  const box = document.getElementById('chapters');
+  CH.forEach(([t, name, desc]) => {
+    const el = document.createElement('div');
+    el.className = 'ch';
+    el.innerHTML = `<span class="t">${t.toFixed(1)}s</span>
+      <span class="n">${name}</span><span class="d">${desc.toUpperCase()}</span>`;
+    el.onclick = () => { v.currentTime = t + 0.02; v.play(); 
+      window.scrollTo({top:0, behavior:'smooth'}); };
+    box.appendChild(el);
+  });
+</script>
+</body>
+</html>

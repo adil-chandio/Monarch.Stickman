@@ -1,0 +1,6 @@
+frames_v2/
+v2_video_only.mp4
+v2_silent.mp4
+test_frames/
+q_*.jpg
+__pycache__/

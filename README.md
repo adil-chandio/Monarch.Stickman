@@ -9,9 +9,17 @@ Every single Law (`Law 1` to `Law 48`, plus the Book Preface and Grand Finale) i
 
 ---
 
-## 🎬 Reference video
+## 🎬 Videos
 
-[Watch or download the silent 8-second fire scene (720p MP4)](video/Prehistoric_Fire_Reference_8s_720p.mp4). This is a high-resolution edit of the scene in the supplied GIF, **not newly generated animation**. The original English/Chinese on-screen subtitles remain. See [source and MIT attribution](video/SOURCE_AND_LICENSE.md).
+- [**Gol Pahiye Ka Kamaal — 10-second original cartoon**](video/Gol_Pahiye_Ka_Kamaal_10s_Silent.mp4): a new silent 720p prehistoric comedy about a rolling wooden disc, with animated characters, moving props, and English/Roman Urdu on-screen subtitles. The illustrations and animation are newly made for this short; it does not reuse frames from the reference video.
+- [**Reference fire scene — 8-second silent edit**](video/Prehistoric_Fire_Reference_8s_720p.mp4): high-resolution edit of the scene in the supplied GIF, **not newly generated animation**. The English/Chinese captions remain. See [source and MIT attribution](video/SOURCE_AND_LICENSE.md).
+
+To reproduce the new cartoon from its illustration assets and Python animation script:
+
+```bash
+python3 -m pip install -r video/requirements.txt
+python3 video/render_wheel_short.py
+```
 
 ## 📂 Repository Structure
 

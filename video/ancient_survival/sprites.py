@@ -9,10 +9,11 @@ what makes the generated walk cycles read as continuous movement.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageOps
+from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 ASSETS = Path(__file__).resolve().parent / "assets"
 
@@ -45,12 +46,34 @@ def key_white(src: Image.Image) -> Image.Image:
     coloured = ImageChops.subtract(high, low).point(
         [max(0, min(255, round((v - 9) * 255 / 16))) for v in range(256)])
     alpha = ImageChops.lighter(dark, coloured)
+    # Drop isolated specks that belong to a neighbouring cell, while thin
+    # drawn lines (much denser locally) survive untouched.
+    density = alpha.filter(ImageFilter.BoxBlur(4))
+    alpha = Image.composite(alpha, Image.new("L", alpha.size, 0),
+                            density.point(lambda v: 255 if v > 17 else 0))
     img.putalpha(alpha)
     box = alpha.getbbox()
     return img.crop(box) if box else img
 
 
+def feet_anchor(cell: Image.Image) -> float:
+    """Horizontal centre of the lowest band of visible pixels = support foot."""
+    alpha = cell.getchannel("A")
+    width, height = cell.size
+    top = round(height * 0.88)
+    band = alpha.crop((0, top, width, height))
+    xs = [x for x in range(width) if band.crop((x, 0, x + 1, band.height)).getbbox()]
+    if not xs:
+        return width / 2
+    return (xs[0] + xs[-1]) / 2
+
+
 def split_sheet(sheet: Sheet) -> dict[str, Image.Image]:
+    """Split, key, and re-centre every pose on the support foot.
+
+    Re-centring on the foot anchor (not the alpha bounding box) stops the
+    character from sliding sideways as limbs move between poses.
+    """
     raw = Image.open(ASSETS / sheet.file)
     cells = []
     for i in range(len(sheet.names)):
@@ -60,9 +83,30 @@ def split_sheet(sheet: Sheet) -> dict[str, Image.Image]:
     scale = sheet.height / cells[sheet.reference].height
     out = {}
     for name, cell in zip(sheet.names, cells):
-        size = (max(1, round(cell.width * scale)), max(1, round(cell.height * scale)))
-        out[name] = cell.resize(size, Image.Resampling.LANCZOS)
+        anchor = feet_anchor(cell)
+        half = math.ceil(max(anchor, cell.width - anchor)) + 2
+        padded = Image.new("RGBA", (half * 2, cell.height), (0, 0, 0, 0))
+        padded.paste(cell, (round(half - anchor), 0))
+        size = (max(1, round(padded.width * scale)), max(1, round(padded.height * scale)))
+        out[name] = padded.resize(size, Image.Resampling.LANCZOS)
     return out
+
+
+WALKS = (
+    ("lookout", "walk_lookout.png", 520),
+    ("woman", "walk_woman.png", 508),
+    ("elder", "walk_elder.png", 486),
+)
+
+
+def load_walks() -> dict[str, list[Image.Image]]:
+    """Four-frame walk cycles: contact, passing, opposite contact, passing."""
+    walks = {}
+    for key, filename, height in WALKS:
+        sheet = Sheet(filename, ("contactA", "passA", "contactB", "passB"), height)
+        frames = split_sheet(sheet)
+        walks[key] = [frames[name] for name in sheet.names]
+    return walks
 
 
 def load_rig() -> dict[str, dict[str, Image.Image]]:

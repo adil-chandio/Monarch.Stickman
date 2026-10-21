@@ -108,6 +108,31 @@ def fire_pop() -> np.ndarray:
     return (RNG.normal(0, 1, n) * np.exp(-t * 165) * 0.037).astype(np.float32)
 
 
+def footstep(weight: float = 1.0) -> np.ndarray:
+    n = round(0.22 * RATE)
+    t = np.arange(n, dtype=np.float32) / RATE
+    thud = np.sin(2 * np.pi * (72 - 26 * t) * t) * np.exp(-t * 26)
+    grit = filtered_noise(n, 3) * np.exp(-t * 42) * 0.5
+    return ((thud * 0.055 + grit * 0.035) * weight).astype(np.float32)
+
+
+def riser(duration: float = 1.1, gain: float = 1.0) -> np.ndarray:
+    n = round(duration * RATE)
+    t = np.arange(n, dtype=np.float32) / RATE
+    env = (t / duration) ** 2
+    sweep = np.sin(2 * np.pi * (220 + 520 * (t / duration) ** 1.6) * t)
+    air = filtered_noise(n, 6) * 0.5
+    return ((sweep * 0.020 + air * 0.030) * env * gain).astype(np.float32)
+
+
+def impact(gain: float = 1.0) -> np.ndarray:
+    n = round(0.75 * RATE)
+    t = np.arange(n, dtype=np.float32) / RATE
+    sub = np.sin(2 * np.pi * (54 - 10 * t) * t) * np.exp(-t * 5.2)
+    snap = RNG.normal(0, 1, n) * np.exp(-t * 38) * 0.22
+    return ((sub * 0.10 + snap * 0.05) * gain).astype(np.float32)
+
+
 def chirp(freq: float) -> np.ndarray:
     t = np.arange(round(0.22 * RATE), dtype=np.float32) / RATE
     sweep = np.sin(2 * np.pi * (freq * t + 650 * t * t))
@@ -179,6 +204,25 @@ def score_and_foley() -> tuple[np.ndarray, np.ndarray]:
     for j, moment in enumerate(np.arange(18.7, 22.35, 0.47)):
         add(wood_tap() * 0.6 + rustle(0.17) * 0.44, foley, float(moment),
             pan=-0.35 if j % 2 else 0.35)
+
+    # Footsteps land on the painted stride contacts of each walk cycle.
+    for base, rate, span, pans in ((7.35, 1.75, 4.1, (-0.2, 0.1, 0.35)),
+                                   (18.5, 1.9, 3.9, (-0.1, 0.15, 0.4)),
+                                   (25.55, 1.9, 2.0, (-0.1, 0.15, 0.4))):
+        for k, pan in enumerate(pans):
+            phase = (0.33 * k) % 1.0
+            moment = base + phase / rate
+            while moment < base + span:
+                add(footstep(0.7 if k else 1.0), foley, moment, pan=pan)
+                moment += 1.0 / rate
+    # Whooshes pushed slightly earlier sell each camera punch; risers lead the
+    # two biggest reveals, and impacts land exactly on the cuts.
+    for moment in (10.98, 12.90, 14.45, 18.00, 22.20, 25.05, 27.20):
+        add(riser(0.9, 0.8), foley, moment, pan=0.15 if moment % 2 else -0.15)
+    for moment, gain in ((0.0, 0.9), (6.40, 0.75), (11.50, 0.6), (13.35, 0.55),
+                         (14.92, 0.7), (18.48, 0.6), (22.67, 0.75), (25.50, 0.6),
+                         (27.65, 1.0)):
+        add(impact(gain), foley, moment, pan=0)
     return music, foley
 
 

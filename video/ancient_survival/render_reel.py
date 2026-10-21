@@ -25,7 +25,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 
 from compose_audio import create_mix
 from sprites import ASSETS, load_rig, put, shaded, shadow
@@ -97,6 +97,28 @@ def punch(x: float) -> float:
     return 1 - (1 - x) ** 3
 
 
+def back_out(x: float, overshoot: float = 1.9) -> float:
+    """Small overshoot so kinetic type and punches feel physical, not linear."""
+    x = min(1.0, max(0.0, x)) - 1
+    return 1 + x * x * ((overshoot + 1) * x + overshoot)
+
+
+def render_line(text: str, font: ImageFont.FreeTypeFont, fill: tuple[int, ...],
+                stroke: int) -> Image.Image:
+    """Draw one caption line with its ink shadow, tightly cropped for motion."""
+    probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
+    width = probe.textlength(text, font=font)
+    ascent, descent = font.getmetrics()
+    layer = Image.new("RGBA", (round(width) + 44, ascent + descent + 40), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    d.text((22 + 6, 14 + 8), text, font=font, fill=(20, 14, 16, 200),
+           stroke_width=stroke + 5, stroke_fill=(20, 14, 16, 120))
+    d.text((22, 14), text, font=font, fill=fill,
+           stroke_width=stroke, stroke_fill=INK + (255,))
+    box = layer.getchannel("A").getbbox()
+    return layer.crop(box) if box else layer
+
+
 def font_for(text: str, wanted: int, max_width: int, black: bool = True) -> ImageFont.FreeTypeFont:
     name = "BarlowCondensed-Black.ttf" if black else "BarlowCondensed-Bold.ttf"
     path = FONTS / name
@@ -120,15 +142,17 @@ def text_center(d: ImageDraw.ImageDraw, text: str, y: int,
            stroke_width=stroke, stroke_fill=INK + (255,))
 
 
-def caption_patch(first: str, second: str, final: bool = False) -> Image.Image:
-    layer = Image.new("RGBA", (W, 300), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
+def caption_patch(first: str, second: str, final: bool = False) -> dict:
+    """Two independently animated type layers, so each can fly in on its own."""
     f1 = font_for(first, 122 if not final else 128, 972)
     f2 = font_for(second, 118 if not final else 74, 964)
-    text_center(d, first, 18, f1, CREAM + (255,), 6)
-    text_center(d, second, 133 if not final else 157, f2,
-                GOLD + (255,), 6 if not final else 4)
-    return layer
+    art = {
+        "first": render_line(first, f1, CREAM + (255,), 6),
+        "second": render_line(second, f2, GOLD + (255,), 6 if not final else 4),
+        "y1": 16,
+        "y2": 128 if not final else 152,
+    }
+    return art
 
 
 def vignette() -> Image.Image:
@@ -141,6 +165,17 @@ def vignette() -> Image.Image:
         if a:
             d.line((0, y, W, y), fill=(18, 15, 21, a), width=1)
     return overlay
+
+
+def film_grain() -> Image.Image:
+    """A static, very low-contrast grain tile: analogue texture, cheap to paste."""
+    rng = random.Random(1904)
+    small = Image.new("L", (270, 480))
+    small.putdata([rng.randint(104, 152) for _ in range(270 * 480)])
+    tile = small.resize((W + 120, H + 120), Image.Resampling.BILINEAR)
+    grain = Image.new("RGBA", tile.size, (0, 0, 0, 0))
+    grain.putalpha(tile.point(lambda v: max(0, abs(v - 128) - 2) // 3))
+    return grain
 
 
 def glow(size: int = 780) -> Image.Image:
@@ -236,7 +271,7 @@ class Reel:
         self.plates = {
             key: ImageOps.fit(Image.open(ASSETS / f"{prefix}.png").convert("RGB"),
                               PLATE, method=Image.Resampling.LANCZOS)
-            for key, prefix in (("night", "scene_night"), ("clearing", "bg_clearing"),
+            for key, prefix in (("night", "bg_night"), ("clearing", "bg_clearing"),
                                 ("camp", "bg_camp"), ("path", "bg_path"),
                                 ("mudbank", "bg_mudbank"))
         }
@@ -255,7 +290,7 @@ class Reel:
         height = 560
         runner = runner.resize((round(runner.width * height / runner.height), height),
                                Image.Resampling.LANCZOS)
-        self.runner = shaded(runner, (44, 42, 62), 0.30)
+        self.runner = shaded(runner, (52, 52, 74), 0.16)
 
         self.night_lookout = {k: shaded(v, (40, 42, 72), 0.34) for k, v in self.lookout.items()}
         self.night_woman = {k: shaded(v, (42, 42, 74), 0.35) for k, v in self.woman.items()}
@@ -269,6 +304,9 @@ class Reel:
                          for i, (_, _, a, b) in enumerate(CAPTIONS)]
         self.vignette = vignette()
         self.fire_glow = glow()
+        self.grain = film_grain()
+        self.warm_grade = Image.new("RGB", (W, H), (255, 208, 150))
+        self.cool_grade = Image.new("RGB", (W, H), (150, 175, 226))
         self.tag_font = ImageFont.truetype(str(FONTS / "BarlowCondensed-Bold.ttf"), 36)
         self.hook1 = ImageFont.truetype(str(FONTS / "BarlowCondensed-Black.ttf"), 157)
         self.hook2 = ImageFont.truetype(str(FONTS / "BarlowCondensed-Black.ttf"), 153)
@@ -279,15 +317,29 @@ class Reel:
         p = ease((t - info.start) / (info.end - info.start))
         cx = info.centre0[0] + (info.centre1[0] - info.centre0[0]) * p
         cy = info.centre0[1] + (info.centre1[1] - info.centre0[1]) * p
-        # A gentle handheld drift keeps even the quietest shot alive.
-        cx += 7 * math.sin(t * 0.63)
-        cy += 5 * math.sin(t * 0.47 + 1.1)
-        ww, wh = W / info.zoom, H / info.zoom
+        # Every cut lands with a decaying punch-in, then breathes with a handheld
+        # drift. Motion is always outward from the frame centre, never a lurch.
+        since = t - info.start
+        kick = math.exp(-since / 0.30)
+        zoom = info.zoom * (1 + 0.075 * kick)
+        shake = 9 * kick
+        cx += shake * math.sin(46 * t) + 6 * math.sin(t * 0.63)
+        cy += shake * 0.7 * math.cos(39 * t) + 4 * math.sin(t * 0.47 + 1.1)
+        ww, wh = W / zoom, H / zoom
         x = round(min(PLATE[0] - ww, max(0.0, cx - ww / 2)))
         y = round(min(PLATE[1] - wh, max(0.0, cy - wh / 2)))
         plate = self.plates[info.image]
         crop = plate.crop((x, y, round(x + ww), round(y + wh)))
-        return crop.resize((W, H), Image.Resampling.LANCZOS), info
+        im = crop.resize((W, H), Image.Resampling.LANCZOS)
+        # A restrained grade separates the two "worlds" of the story.
+        if info.image in ("night", "camp"):
+            im = Image.blend(im, self.cool_grade, 0.050)
+            im = ImageEnhance.Contrast(im).enhance(1.06)
+        else:
+            im = Image.blend(im, self.warm_grade, 0.070)
+            im = ImageEnhance.Color(im).enhance(1.06)
+            im = ImageEnhance.Contrast(im).enhance(1.04)
+        return im, info
 
     # ------------------------------------------------------------- animation
     def walk(self, rig: dict, x: float, foot_y: float, phase: float,
@@ -420,15 +472,15 @@ class Reel:
     def draw_camp(self, t: float, ending: bool = False) -> None:
         im = self.frame_im
         # lookout sits behind the fire, occasionally poking the embers
-        shadow(im, 590, 1214, 250, alpha=96)
+        shadow(im, 552, 1144, 250, alpha=96)
         sitting = "tend" if 15.35 < t < 16.15 or 16.95 < t < 17.5 or t > 28.15 else "sit"
-        put(im, self.night_sit[sitting], 590, 1218,
+        put(im, self.night_sit[sitting], 552, 1148,
             angle=1.2 * math.sin(t * 1.6), scale=1.18)
-        fire(im, 496, 1382, t, 1.42, self.fire_glow)
+        fire(im, 512, 1372, t, 1.34, self.fire_glow)
         # the woman kneels at the fire turning food on a stick
         turn = "turnB" if math.sin(t * 2.4) > 0 else "turnA"
-        shadow(im, 806, 1402, 270, alpha=88)
-        put(im, self.night_woman_sit[turn], 806, 1406, angle=1.0 * math.sin(t * 1.9),
+        shadow(im, 846, 1420, 270, alpha=88)
+        put(im, self.night_woman_sit[turn], 846, 1424, angle=1.0 * math.sin(t * 1.9),
             scale=1.18)
         # the elder warms her hands, both palms rubbing together slowly
         rub = 1.8 * math.sin(t * 5.2)
@@ -437,7 +489,16 @@ class Reel:
             angle=1.4 * math.sin(t * 1.35), scale=1.20)
         d = ImageDraw.Draw(im, "RGBA")
         flicker = 0.5 + 0.5 * math.sin(t * 7.4)
-        for box, base in (((330, 1020, 700, 1230), 26), ((672, 1180, 940, 1340), 22),
+        # soft volumetric rays fanning up from the flames
+        for k in range(7):
+            angle = -1.9 + k * 0.30 + 0.05 * math.sin(t * 1.7 + k)
+            length = 470 + 60 * math.sin(t * 2.1 + k)
+            x2 = 512 + math.sin(angle) * length
+            y2 = 1340 - math.cos(angle) * length
+            d.polygon([(512 - 26, 1340), (512 + 26, 1340),
+                       (x2 + 46, y2), (x2 - 46, y2)],
+                      fill=(255, 172, 88, round(8 + 7 * flicker)))
+        for box, base in (((356, 1016, 700, 1216), 26), ((700, 1190, 960, 1350), 22),
                           ((96, 1200, 350, 1360), 20)):
             d.ellipse(box, fill=(255, 154, 74, round(base + 12 * flicker)))
         if ending:
@@ -466,6 +527,13 @@ class Reel:
                                                else (phase - 0.5) / 0.5)))
             put(im, rig[pose], x, fy - bob,
                 angle=1.5 * math.sin(2 * math.pi * phase + offset), scale=sc)
+            # dust kicked up right after each foot plants (contacts at 0 and 0.5)
+            for contact in (0.0, 0.5):
+                age = (phase - contact) % 1.0
+                if age < 0.34:
+                    r = 10 + 34 * age / 0.34
+                    d.ellipse((x - 30 - r, fy - r * 0.45, x - 30 + r, fy + r * 0.45),
+                              fill=(206, 174, 126, round(104 * (1 - age / 0.34))))
             if phase > 0.42:
                 age = (phase - 0.42) / 0.3
                 r = 8 + 24 * age
@@ -475,12 +543,12 @@ class Reel:
     # ---------------------------------------------------------------- plates
     def background_motion(self, im: Image.Image, key: str, t: float) -> None:
         d = ImageDraw.Draw(im, "RGBA")
-        if key in ("night", "camp"):
-            for i in range(8):
-                x = ((i * 174 + t * (26 + i % 3 * 11)) % 1320) - 120
-                y = 700 + (i * 181) % 520
+        if key == "camp":
+            for i in range(6):
+                x = ((i * 190 + t * (22 + i % 3 * 9)) % 1300) - 110
+                y = 220 + (i * 143) % 300
                 d.arc((x - 100, y - 10, x + 72, y + 18), 172, 344,
-                      fill=(226, 220, 208, 34), width=2)
+                      fill=(226, 220, 208, 30), width=2)
         if key == "clearing":
             for i in range(5):
                 gx = 130 + i * 210 + 16 * math.sin(t * 0.8 + i)
@@ -535,17 +603,49 @@ class Reel:
             im.paste(layer, (0, 312), layer.getchannel("A"))
 
     def caption(self, t: float) -> None:
+        """Word-level kinetic type: slide, overshoot, settle, then lift away."""
         im = self.frame_im
         for i, (start, end, _, _) in enumerate(CAPTIONS):
-            if start <= t < end:
-                fade = max(0.0, ease(min(1.0, (t - start) / 0.16, (end - t) / 0.14)))
-                patch = self.captions[i]
-                if fade < 0.999:
-                    patch = patch.copy()
-                    patch.putalpha(patch.getchannel("A").point(lambda a: round(a * fade)))
-                im.paste(patch, (0, CAPTION_Y + round(26 * (1 - fade))),
-                         patch.getchannel("A"))
-                break
+            if not start <= t < end:
+                continue
+            art = self.captions[i]
+            enter = min(1.0, (t - start) / 0.24)
+            leave = min(1.0, max(0.0, (end - t) / 0.17))
+            if leave <= 0:
+                return
+            alpha = round(255 * min(1.0, enter * 1.5, leave * 1.25))
+            pop = 1.0 + 0.06 * (1 - back_out(enter)) * (1 if enter < 1 else 0)
+            for key, dx, delay in (("first", -84, 0.0), ("second", 84, 0.05)):
+                layer = art[key]
+                local = min(1.0, max(0.0, (t - start - delay) / 0.26))
+                if local <= 0:
+                    continue
+                scale = (0.93 + 0.07 * back_out(local)) * pop
+                wobble = 1.6 * math.sin(28 * t + i) * (1 - local)
+                w = max(1, round(layer.width * scale))
+                h = max(1, round(layer.height * scale))
+                sprite = layer.resize((w, h), Image.Resampling.LANCZOS)
+                if wobble:
+                    sprite = sprite.rotate(wobble, resample=Image.Resampling.BICUBIC,
+                                           expand=True)
+                if alpha < 255:
+                    sprite = sprite.copy()
+                    sprite.putalpha(sprite.getchannel("A").point(
+                        lambda a: round(a * alpha / 255)))
+                offset = (1 - local) * dx
+                lift = (1 - leave) * -26
+                y = CAPTION_Y + art["y1" if key == "first" else "y2"] + lift
+                im.paste(sprite, (round(W / 2 - sprite.width / 2 + offset), round(y)),
+                         sprite.getchannel("A"))
+            # A highlighter swipe under the second line lands with the beat.
+            swipe = ease(min(1.0, max(0.0, (t - start - 0.08) / 0.26))) * leave
+            if swipe > 0:
+                d = ImageDraw.Draw(im, "RGBA")
+                bar_w = 560 * swipe
+                bar_y = CAPTION_Y + art["y2"] + art["second"].height - 6
+                d.rounded_rectangle((W / 2 - bar_w / 2, bar_y, W / 2 + bar_w / 2,
+                                     bar_y + 7), radius=4, fill=GOLD + (150,))
+            return
 
     @staticmethod
     def transition(im: Image.Image, t: float) -> None:
@@ -577,7 +677,14 @@ class Reel:
                 r = 14 + 46 * age
                 d.ellipse((px - r, py - r / 2, px + r, py + r / 2),
                           fill=(190, 182, 176, round(52 * (1 - age * 2))))
-        _ = d
+        # horizontal speed streaks sell the sprint without extra artwork
+        for i in range(9):
+            sy = 1240 + (i * 61) % 300
+            age = (t * 2.6 + i * 0.17) % 1.0
+            sx = x + 90 - age * 260
+            length = 60 + 90 * (i % 3)
+            d.line((sx, sy, sx + length, sy),
+                   fill=(226, 222, 214, round(46 * (1 - age))), width=2)
 
     def frame(self, t: float) -> Image.Image:
         crop, info = self.scene(t)
@@ -601,6 +708,10 @@ class Reel:
             self.draw_path(t, tight=t >= 25.5)
 
         crop.paste(self.vignette, (0, 0), self.vignette.getchannel("A"))
+        gx = round((t * 7.3) % 60)
+        gy = round((t * 11.7) % 60)
+        crop.paste(self.grain.crop((gx, gy, gx + W, gy + H)), (0, 0),
+                   self.grain.crop((gx, gy, gx + W, gy + H)).getchannel("A"))
         self.transition(crop, t)
         self.title(t)
         self.caption(t)

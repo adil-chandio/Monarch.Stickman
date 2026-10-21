@@ -8,14 +8,22 @@ A portrait-format illustrated explainer about **how prehistoric people survived*
 
 | Element | File | How it moves on screen |
 | --- | --- | --- |
-| Empty plates | `assets/bg_clearing.png`, `bg_camp.png`, `bg_path.png`, `bg_mudbank.png`, `scene_night.png` | Camera push-in, pan, handheld sway and a slow Ken-Burns drift; no baked-in characters |
-| Lookout rig | `assets/sheet_lookout.png` (stand, walk A, walk B, knapping) | Scanning stance, one confident step, alternating stride, strike recoil |
+| Empty plates | `assets/bg_clearing.png`, `bg_camp.png`, `bg_path.png`, `bg_mudbank.png`, `bg_night.png` | Cut-in camera punch that decays, Ken-Burns push/pan, handheld sway and graded warm/cool lighting; no baked-in characters |
+| Walk cycles | `assets/walk_lookout.png`, `walk_woman.png`, `walk_elder.png` (contact, passing, contact, passing) | True four-pose cycles with a foot-plant bob, so steps alternate instead of swapping two stills |
+| Lookout rig | `assets/sheet_lookout.png` (stand, walk A, walk B, knapping) | Scanning stance, one confident step, strike recoil and knapping sparks |
 | Berry-picker rig | `assets/sheet_woman.png` + `sheet_pick.png` | Loop of reach-high / reach-low picking with body sway and falling berries |
 | Elder rig | `assets/sheet_elder.png` | Walk cycle while crossing with firewood, kneeling hand-warming with hand rub |
 | Campfire rig | `assets/sheet_lookout_sit.png`, `sheet_woman_sit.png` | Seated lookout poking the fire, woman turning food on a stick, both in a slow idle |
-| Running hook | `../assets/caveperson_run.png` | Bolting character with speed dust and camera-side entry |
+| Running hook | `../assets/caveperson_run.png` | Bolting character with speed dust, motion streaks and a camera-side entry |
 
-`sprites.py` slices each sheet into equal cells, keys the white background to transparency, trims the cell, and scales the poses of a sheet by **one shared factor** so a character never "breathes" in size between poses. Every paste is anchored on the feet baseline, which is what makes the generated two-pose walk cycles read as continuous motion. Night scenes re-tint the same rig instead of using separate art.
+`sprites.py` slices each sheet into equal cells, keys the white background to transparency (with a density pass that drops stray specks from neighbouring cells), **re-centres every pose on the support-foot anchor** so the character cannot slide sideways between frames, and scales the poses of a sheet by one shared factor so a character never "breathes" in size. Pastes are anchored on the feet baseline. Night scenes re-tint the same rig instead of using separate art.
+
+## Motion, type and sound design
+
+- **Kinetic captions:** each line slides in from opposite sides with a small overshoot, scales on its own offset, settles, then lifts away with a gold highlighter swipe underneath.
+- **Camera:** a six-frame punch-in and decaying shake on every cut, plus a slow push/pan for the whole shot.
+- **Atmosphere:** warm/cool grade, animated film grain, dust kicks on foot plants, volumetric firelight rays, embers, speed streaks and a hand-drawn flame.
+- **Sound:** original D-minor score with percussion and shaker, wide wind bed, forest chirps, stone chips, fire pops, footsteps timed to each walk cycle's contact frames, transition whooshes, risers into the two big reveals and sub impacts on every cut. Music is ducked under the narration and mastered to −13 LUFS with a −1.5 dBTP ceiling.
 
 ## Story and factual framing
 

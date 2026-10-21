@@ -82,6 +82,16 @@ CAPTIONS = [
     (25.50, 27.65, "PLANNING", "+ EK DOOSRE KA SAATH"),
     (27.65, 30.00, "SAATH = SURVIVAL", "MONARCHVOICE"),
 ]
+# Multiplane foreground: near-camera elements that create real parallax and
+# depth-of-field. They sit below the captions and above the characters.
+FOREGROUND = {
+    "clearing": ("fg_grass", 0.08, 1.010, 0.62, 0.0, 1.45),
+    "path": ("fg_grass", 0.94, 1.008, 0.56, 2.1, 1.45),
+    "mudbank": ("fg_grass", 0.05, 1.012, 0.50, 4.2, 1.35),
+    "night": ("fg_bush", 0.95, 1.006, 0.56, 1.3, 1.55),
+    "camp": ("fg_bush", 0.04, 1.010, 0.52, 3.4, 1.45),
+}
+
 BERRY_BEATS = [8.4 + i * 0.62 for i in range(6)] + [23.5, 24.1, 24.7]
 STRICKES = (11.63, 12.02, 12.55, 12.96, 13.18)
 
@@ -275,6 +285,17 @@ class Reel:
                                 ("camp", "bg_camp"), ("path", "bg_path"),
                                 ("mudbank", "bg_mudbank"))
         }
+        from sprites import key_white
+
+        self.fg = {
+            name: Image.open(ASSETS / f"{name}.png").convert("RGB")
+            for name in ("fg_grass", "fg_bush")
+        }
+        self.fg = {k: key_white(v) for k, v in self.fg.items()}
+        self.fg = {
+            k: ImageEnhance.Brightness(v).enhance(0.92 if k == "fg_bush" else 1.0)
+            for k, v in self.fg.items()
+        }
         rig = load_rig()
         self.lookout = rig["lookout"]
         self.woman = rig["woman"]
@@ -312,7 +333,7 @@ class Reel:
         self.hook2 = ImageFont.truetype(str(FONTS / "BarlowCondensed-Black.ttf"), 153)
 
     # ---------------------------------------------------------------- camera
-    def scene(self, t: float) -> tuple[Image.Image, Scene]:
+    def scene(self, t: float) -> tuple[Image.Image, Scene, tuple[float, float]]:
         info = next((s for s in SCENES if s.start <= t < s.end), SCENES[-1])
         p = ease((t - info.start) / (info.end - info.start))
         cx = info.centre0[0] + (info.centre1[0] - info.centre0[0]) * p
@@ -331,6 +352,7 @@ class Reel:
         plate = self.plates[info.image]
         crop = plate.crop((x, y, round(x + ww), round(y + wh)))
         im = crop.resize((W, H), Image.Resampling.LANCZOS)
+        cam = (cx - info.centre0[0], cy - info.centre0[1])
         # A restrained grade separates the two "worlds" of the story.
         if info.image in ("night", "camp"):
             im = Image.blend(im, self.cool_grade, 0.050)
@@ -339,7 +361,7 @@ class Reel:
             im = Image.blend(im, self.warm_grade, 0.070)
             im = ImageEnhance.Color(im).enhance(1.06)
             im = ImageEnhance.Contrast(im).enhance(1.04)
-        return im, info
+        return im, info, cam
 
     # ------------------------------------------------------------- animation
     def walk(self, rig: dict, x: float, foot_y: float, phase: float,
@@ -540,6 +562,59 @@ class Reel:
                 d.ellipse((x - 66 - r, fy - r / 2, x - 66 + r, fy + r / 2),
                           fill=(196, 162, 114, round(88 * (1 - age))))
 
+    # -------------------------------------------------------------- multiplane
+    def dust_motes(self, t: float, key: str) -> None:
+        """Lit particles drifting through the near plane: cheap, huge depth cue."""
+        d = ImageDraw.Draw(self.frame_im, "RGBA")
+        warm = key not in ("night", "camp")
+        for i in range(22):
+            speed = 11 + (i % 5) * 6
+            x = (i * 197 + t * speed) % (W + 120) - 60
+            y = (i * 331 + t * (6 + i % 4 * 4)) % (H - 420) + 240
+            wobble = 14 * math.sin(t * 0.9 + i * 2.1)
+            depth = 0.35 + 0.65 * ((i * 37) % 100) / 100
+            r = 1.4 + 2.6 * depth
+            alpha = round((30 + 46 * depth) * (0.7 + 0.3 * math.sin(t * 1.7 + i)))
+            colour = (255, 232, 186) if warm else (206, 220, 244)
+            d.ellipse((x + wobble - r, y - r, x + wobble + r, y + r),
+                      fill=colour + (max(0, alpha),))
+
+    def foreground(self, key: str, t: float, cam: tuple[float, float],
+                   punch_in: float) -> None:
+        """Near plane: larger, softly defocused, and parallaxing hardest."""
+        spec = FOREGROUND.get(key)
+        if not spec:
+            return
+        name, xf, yf, scale, phase, parallax = spec
+        sprite = self.fg[name]
+        wobble = 1.2 * math.sin(t * 0.85 + phase)
+        grow = 1 + (punch_in - 1) * 0.65
+        width = round(sprite.width * scale * grow)
+        height = round(sprite.height * scale * grow)
+        plane = sprite.resize((max(1, width), max(1, height)),
+                              Image.Resampling.LANCZOS)
+        # Depth of field: the near plane is out of focus while the cast stays sharp.
+        plane = plane.filter(ImageFilter.GaussianBlur(radius=2.6))
+        plane = ImageEnhance.Brightness(plane).enhance(0.86)
+        alpha = plane.getchannel("A").point(lambda a: round(a * 0.92))
+        plane.putalpha(alpha)
+        x = W * xf - width / 2 + cam[0] * parallax + wobble
+        y = H * yf - height + cam[1] * 0.35
+        self.frame_im.paste(plane, (round(x), round(y)), plane.getchannel("A"))
+        # A second, much closer silhouette clips the opposite corner so the
+        # frame feels physically shot through foliage.
+        corner = self.fg["fg_bush" if key not in ("night", "camp") else "fg_grass"]
+        scale2 = 1.22
+        cw, ch = round(corner.width * scale2), round(corner.height * scale2)
+        near = corner.resize((cw, ch), Image.Resampling.LANCZOS)
+        near = ImageEnhance.Brightness(near).enhance(0.50 if key in ("night", "camp") else 0.66)
+        near = near.filter(ImageFilter.GaussianBlur(radius=5.0))
+        near.putalpha(near.getchannel("A").point(lambda a: round(a * 0.72)))
+        cx2 = W + 40 - cw * (0.58 if xf > 0.5 else 0.42) + cam[0] * 2.4
+        cy2 = H + 150 - ch + cam[1] * 0.5
+        self.frame_im.paste(near, (round(cx2 if xf > 0.5 else -40 - cw * 0.5),
+                                  round(cy2)), near.getchannel("A"))
+
     # ---------------------------------------------------------------- plates
     def background_motion(self, im: Image.Image, key: str, t: float) -> None:
         d = ImageDraw.Draw(im, "RGBA")
@@ -687,7 +762,7 @@ class Reel:
                    fill=(226, 222, 214, round(46 * (1 - age))), width=2)
 
     def frame(self, t: float) -> Image.Image:
-        crop, info = self.scene(t)
+        crop, info, cam = self.scene(t)
         self.frame_im = crop
         self.background_motion(crop, info.image, t)
 
@@ -707,6 +782,9 @@ class Reel:
         elif info.image == "path":
             self.draw_path(t, tight=t >= 25.5)
 
+        punch_in = 1 + 0.075 * math.exp(-(t - info.start) / 0.30)
+        self.foreground(info.image, t, cam, punch_in)
+        self.dust_motes(t, info.image)
         crop.paste(self.vignette, (0, 0), self.vignette.getchannel("A"))
         gx = round((t * 7.3) % 60)
         gy = round((t * 11.7) % 60)

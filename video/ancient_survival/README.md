@@ -18,6 +18,20 @@ A portrait-format illustrated explainer about **how prehistoric people survived*
 
 `sprites.py` slices each sheet into equal cells, keys the white background to transparency (with a density pass that drops stray specks from neighbouring cells), **re-centres every pose on the support-foot anchor** so the character cannot slide sideways between frames, and scales the poses of a sheet by one shared factor so a character never "breathes" in size. Pastes are anchored on the feet baseline. Night scenes re-tint the same rig instead of using separate art.
 
+## 2.5D multiplane depth
+
+The renderer is a **2.5D multiplane camera**, the classic animation-camera technique: flat illustration planes stacked in depth, each moving by a different amount as the camera dollies.
+
+| Plane | Parallax | Treatment |
+| --- | --- | --- |
+| Background illustration | 1.0 | Cut-in punch, push/pan, graded |
+| Character sprites | 1.0 (stage space) | Four-pose walk cycles, foot-plant dust, contact shadows |
+| Near foliage (`assets/fg_grass.png`, `fg_bush.png`) | 1.35–1.55 | Oversized, softly defocused, darkened, drifts hardest with the camera |
+| Extreme-close silhouette | 2.4 | Heavy blur, deep shadow, clips one bottom corner for a shot-through-bushes feel |
+| Dust motes | 0.35–1.0 | Warm (day) or cool (night) lit particles drifting through the near plane |
+
+This gives real depth without a 3D renderer. A triangle-mesh/3D pipeline needs Blender or a GPU stack, which this sandbox does not have; the multiplane rig provides the parallax, focus falloff and camera-move feel those shots would use, and stays fully reproducible with Pillow + NumPy.
+
 ## Motion, type and sound design
 
 - **Kinetic captions:** each line slides in from opposite sides with a small overshoot, scales on its own offset, settles, then lifts away with a gold highlighter swipe underneath.

@@ -12,6 +12,7 @@ import random
 import numpy as np
 
 from mesh3d import (Builder, Rig, make_transform, pose_crouch, pose_idle, pose_knap,
+                    pose_knap_strike,
                     pose_pick, pose_point, pose_sit_tend, pose_sit_warm, pose_walk,
                     pose_warm, MAT_SKIN, MAT_CLOTH, MAT_HAIR, MAT_STONE, MAT_LEAF,
                     MAT_EYE, MAT_WOOD, MAT_GROUND)
@@ -39,6 +40,8 @@ def apply_env(r, env) -> None:
                   light2=env.get("light2"), light2_colour=env.get("light2_colour", (0, 0, 0)),
                   light2_range=env.get("light2_range", 3.0),
                   dof_focus=env.get("dof_focus", 0.0), dof=env.get("dof", 0.0),
+                  mist=env.get("mist"), mist_amount=env.get("mist_amount", 0.0),
+                  mist_height=env.get("mist_height", 0.9),
                   sky=env.get("sky"), cloud=env.get("cloud", 0.0),
                   milky=env.get("milky", 0.0), ao=env.get("ao", 0.62),
                   bloom=env.get("bloom", 0.5))
@@ -254,28 +257,65 @@ def add_fire(b: Builder, pos, t: float, scale: float = 1.0, fuel: float = 1.0):
         b.sphere((x + math.cos(a) * 0.72 * scale, y + 0.04, z + math.sin(a) * 0.72 * scale),
                  0.13 * scale, (0.33, 0.31, 0.29), rings=5, seg=7, scale=(1.1, 0.7, 1.0),
                  squash=0.2)
-    # layered emissive flame tongues
+    # ---- layered flame tongues: lofted, curved, tapering blades ----------
+    def tongue(cx, cz, h, w, ph, col, emis, base_y, seg=7, rings=6, spin=0.0):
+        pts = []
+        for k in range(rings + 1):
+            t = k / rings
+            grow = (1.0 - t) ** 0.62
+            rr = w * grow * (0.92 + 0.16 * math.sin(ph * 2.1 + t * 4.0))
+            yy = base_y + h * t
+            sway = (0.05 + 0.16 * t * t) * math.sin(ph * 1.7 + t * 3.4 + spin)
+            row = []
+            for j in range(seg):
+                a = 2 * math.pi * j / seg + spin
+                row.append((cx + sway + rr * math.cos(a), yy,
+                            cz + rr * 0.85 * math.sin(a)))
+            pts.append(row)
+        for k in range(rings):
+            for j in range(seg):
+                j2 = (j + 1) % seg
+                a0, a1 = pts[k][j], pts[k][j2]
+                b0, b1 = pts[k + 1][j], pts[k + 1][j2]
+                b.quad(a0, a1, b1, b0, col, emission=emis,
+                       uvs=[(0.0, 0.0), (0.1, 0.0), (0.1, 0.1), (0.0, 0.1)])
+        tip = (cx + (0.05 + 0.16) * math.sin(ph * 1.7 + 3.4 + spin),
+               base_y + h * 1.24, cz)
+        for j in range(seg):
+            j2 = (j + 1) % seg
+            b.tri(pts[rings][j], pts[rings][j2], tip, col, emission=emis,
+                  uvs=((0.0, 0.0), (0.1, 0.0), (0.05, 0.12)))
+
+    fy = y + 0.06
     for i in range(9):
-        ph = t * (4.2 + i * 0.55) + i * 1.9
-        h = (0.42 + 0.20 * math.sin(ph)) * scale * fuel
-        w = (0.105 + 0.03 * math.sin(ph * 1.3)) * scale
-        off = (i - 4) * 0.062 * scale
-        lean = 0.05 * math.sin(ph * 0.8 + i) * scale
-        b.cone((x + off, y + 0.10, z + (i % 3 - 1) * 0.04 * scale), w, h,
-               (1.0, 0.48, 0.14), seg=7, emission=(0.30, 0.085, 0.012), lean=(lean, 0))
-    for i in range(5):
-        ph = t * (5.6 + i * 0.5) + i * 1.4
-        h = (0.26 + 0.13 * math.sin(ph)) * scale * fuel
-        b.cone((x + (i - 2) * 0.045 * scale, y + 0.12, z), 0.062 * scale, h,
-               (1.0, 0.66, 0.24), seg=6, emission=(0.44, 0.20, 0.035))
-    # sparks
-    rng = random.Random(int(t * 12) + 3)
-    for i in range(5):
+        ph = t * (4.4 + i * 0.5) + i * 2.1
+        h = (0.50 + 0.26 * math.sin(ph)) * scale * fuel
+        w = (0.088 + 0.030 * math.sin(ph * 1.3)) * scale
+        off = (i - 4) * 0.058 * scale
+        tongue(x + off, z + ((i % 3) - 1) * 0.05 * scale, h, w, ph,
+               (1.0, 0.46, 0.10), (0.26, 0.070, 0.008), fy, spin=i * 0.7)
+    for i in range(6):
+        ph = t * (6.1 + i * 0.6) + i * 1.3
+        h = (0.30 + 0.18 * math.sin(ph)) * scale * fuel
+        tongue(x + (i - 2.5) * 0.052 * scale, z + 0.01, h, 0.055 * scale, ph,
+               (1.0, 0.72, 0.28), (0.42, 0.20, 0.030), fy + 0.02, spin=i * 1.1)
+    for i in range(3):
+        ph = t * 7.7 + i * 2.4
+        h = (0.17 + 0.09 * math.sin(ph)) * scale * fuel
+        tongue(x + (i - 1) * 0.035 * scale, z + 0.02, h, 0.035 * scale, ph,
+               (1.0, 0.92, 0.62), (0.60, 0.40, 0.12), fy + 0.04, spin=i * 1.9)
+    # coal bed: a hot glow at the base that spills onto the logs
+    b.sphere((x, fy + 0.02, z), 0.26 * scale, (1.0, 0.42, 0.12), rings=6, seg=14,
+             scale=(1.0, 0.14, 1.0), emission=(0.22, 0.060, 0.010))
+    # sparks riding the heat column
+    rng = random.Random(int(t * 14) + 3)
+    for i in range(9):
         a = rng.random() * 2 * math.pi
-        d = rng.random() * 0.55
-        hh = 0.35 + rng.random() * 0.8
-        b.sphere((x + math.cos(a) * d, y + hh, z + math.sin(a) * d), 0.013 * scale,
-                 (1.0, 0.6, 0.2), rings=3, seg=4, emission=(0.75, 0.30, 0.06))
+        d = 0.10 + rng.random() * 0.40
+        hh = 0.30 + rng.random() * 1.15
+        b.sphere((x + math.cos(a) * d, y + hh, z + math.sin(a) * d),
+                 0.010 * scale, (1.0, 0.62, 0.22), rings=3, seg=5,
+                 emission=(0.90, 0.34, 0.05))
 
 
 # ---------------------------------------------------------------- characters
@@ -417,8 +457,26 @@ def shot_fire(t: float, p: float) -> tuple[list, dict]:
     return [b.arrays()], dict(cam=cam, env=env)
 
 
+STRIKE_PERIOD = 0.62
+STRIKE_START = 10.0
+
+
+def strike_times(t: float, window: float = 0.55) -> list[float]:
+    """Recent knapping impacts, newest first (used by the chip debris)."""
+    out = []
+    k = 0
+    while True:
+        ts = STRIKE_START + k * STRIKE_PERIOD
+        if ts > t:
+            break
+        if t - ts < window:
+            out.append(ts)
+        k += 1
+    return out
+
+
 def shot_tools(t: float, p: float) -> tuple[list, dict]:
-    """Stone tools: one survivor lifts a hand-axe, a mate holds the spear."""
+    """Stone tools: one survivor knaps a core into a hand-axe, a mate watches."""
     b = Builder()
     add_terrain(b, 90, 36, ground_colour)
     add_mountains(b, 56, 13)
@@ -438,64 +496,114 @@ def shot_tools(t: float, p: float) -> tuple[list, dict]:
         rx, rz = -1.7 + i * 0.80, 1.85
         add_rock(b, (rx, height(rx, rz), rz), 0.09 + 0.04 * (i % 2),
                  (0.34, 0.32, 0.29), seed=31 + i)
-    # the toolmaker lifts a fresh hand-axe; her mate carries the spear
-    pose_a = pose_idle(t)
-    pose_a.update({
-        "shoulder_r": (-1.52 + 0.07 * math.sin(t * 2.4), 0.16, 0.26),
-        "elbow_r": (-0.34, 0, 0),
-        "shoulder_l": (0.10, 0, -0.24), "elbow_l": (-0.46, 0, 0),
-        "chest": (0, 0.12, 0), "neck": (-0.10, 0, 0),
-    })
-    world_a = add_character(b, "woman", pose_a, root=(-0.52, height(-0.52, 0.30), 0.30),
-                            yaw=0.42, scale=1.0, grounded=True, blink=blink_at(t, 0.9))
-    # hand-axe clasped in her fist, handle following the forearm line
+    # --- the knapper, kneeling behind a flat anvil stone ---------------
+    kx, kz = -0.48, 0.54
+    ky = height(kx, kz)
+    phase = ((t - STRIKE_START) / STRIKE_PERIOD) % 1.0
+    pose_a = pose_knap_strike(phase)
+    world_a = add_character(b, "woman", pose_a, root=(kx, ky, kz), yaw=0.90,
+                            scale=1.0, grounded=True, blink=blink_at(t, 0.9))
+    # --- the working ledge: a flat-topped bedrock crag beside him ---------
+    ax, az = -0.12, 0.40
+    ay = height(ax, az)
+    b.mat = MAT_STONE
+    # rubble skirt so the crag reads as bedrock, not a pedestal
+    for i in range(9):
+        a = 2 * math.pi * i / 9 + 0.4
+        rr = 0.30 + 0.07 * math.sin(i * 2.1)
+        px, pz = ax + math.cos(a) * rr, az + math.sin(a) * rr
+        b.sphere((px, height(px, pz) + 0.04, pz), 0.09 + 0.04 * math.cos(i * 1.7),
+                 (0.30, 0.285, 0.265), rings=6, seg=11,
+                 scale=(1.2, 0.62, 1.0), squash=0.25)
+    b.sphere((ax, ay + 0.09, az), 0.265, (0.275, 0.262, 0.246), rings=9, seg=20,
+             scale=(1.22, 0.86, 1.14), squash=0.30)
+    b.sphere((ax, ay + 0.30, az), 0.245, (0.315, 0.298, 0.274), rings=10, seg=20,
+             scale=(1.14, 0.62, 1.08), squash=0.18)
+    core = np.array([ax - 0.01, ay + 0.455, az - 0.01])
+    b.sphere(core, 0.105, (0.33, 0.315, 0.29), rings=10, seg=15,
+             scale=(1.0, 0.78, 0.95), squash=0.22)
+    b.mat = MAT_SKIN
+    # hammer stone clamped in the striking fist
     wrist = world_a["wrist_r"][:3, 3]
     elbow = world_a["elbow_r"][:3, 3]
     d = wrist - elbow
     d = d / (float(np.linalg.norm(d)) + 1e-6)
-    head = wrist + d * 0.24
-    b.capsule(wrist - d * 0.14, head + d * 0.02, 0.014, 0.017, (0.46, 0.34, 0.21), seg=5)
-    # knapped blade: a flat flake wider at the cutting edge
-    blade_c = head + d * 0.03
-    axis = d / (float(np.linalg.norm(d)) + 1e-6)
-    blade_yaw = math.atan2(axis[0], axis[2]) + 0.5
-    b.box(blade_c, (0.115, 0.075, 0.028), (0.37, 0.35, 0.32), yaw=blade_yaw)
-    b.box(blade_c + np.array([0.0, 0.042, 0.0]), (0.085, 0.030, 0.020),
-          (0.47, 0.44, 0.40), yaw=blade_yaw)
-    b.capsule(wrist - d * 0.05, wrist + d * 0.06, 0.032, 0.030, (0.62, 0.44, 0.32),
-              rings=3, seg=6)
-    add_character(b, "man", pose_idle(t + 1.2), root=(0.66, height(0.66, -0.10), -0.10),
-                  yaw=-0.55, scale=1.02, grounded=True, blink=blink_at(t, 2.6))
-    # spear planted in the ground beside him
-    b.capsule((0.98, height(0.98, 0.15), 0.15), (0.86, height(0.86, 0.15) + 1.62, 0.15),
-              0.022, 0.030, (0.45, 0.33, 0.20), seg=6)
-    b.cone((0.86, height(0.86, 0.15) + 1.62, 0.15), 0.05, 0.17, (0.36, 0.33, 0.30),
-           seg=6, lean=(0.02, 0.0))
-    # knapped flakes and finished hand-axes on the ground
-    for i in range(6):
-        b.box((-0.55 + i * 0.15, height(-0.55 + i * 0.15, 1.35) + 0.02, 1.35),
-              (0.085, 0.02, 0.13), (0.30, 0.29, 0.27), yaw=i * 0.7)
-    for i, (ax, az, ay) in enumerate(((-0.05, 1.72, 0.5), (0.42, 1.55, -0.7))):
-        b.sphere((ax, height(ax, az) + 0.05, az), 0.085, (0.33, 0.31, 0.29),
-                 rings=5, seg=7, scale=(1.45, 0.5, 0.8))
+    b.mat = MAT_STONE
+    b.sphere(wrist + d * 0.055, 0.052, (0.34, 0.32, 0.30), rings=7, seg=11,
+             scale=(1.0, 0.85, 1.0), squash=0.2)
+    b.mat = MAT_SKIN
+    b.capsule(wrist - d * 0.02, wrist + d * 0.04, 0.033, 0.031, (0.60, 0.43, 0.31),
+              rings=4, seg=10)
+    # --- chips: analytic ballistic debris from each recent strike -------
+    for si, ts in enumerate(strike_times(t)):
+        dt = t - ts
+        rng = random.Random(int(ts * 1000))
+        b.mat = MAT_STONE
+        for i in range(11):
+            a = rng.random() * 2 * math.pi
+            sp = 0.9 + rng.random() * 2.0
+            vy = 0.5 + rng.random() * 1.5
+            px = core[0] + math.cos(a) * sp * dt
+            pz = core[2] + math.sin(a) * sp * dt
+            py = core[1] + vy * dt - 4.9 * dt * dt
+            floor = height(px, pz) + 0.012
+            if py < floor:
+                py = floor
+            b.sphere((px, py, pz), 0.011 + rng.random() * 0.014,
+                     (0.36, 0.345, 0.32), rings=4, seg=7,
+                     scale=(1.0, 0.55, 1.0), squash=0.3)
+        # a quick spark-like glint at the point of impact
+        if dt < 0.10:
+            k = 1.0 - dt / 0.10
+            b.sphere((core[0], core[1] + 0.03, core[2]), 0.05 * (0.4 + 0.6 * k),
+                     (1.0, 0.94, 0.78), rings=5, seg=8,
+                     emission=(1.1 * k, 0.85 * k, 0.50 * k))
+        # a small dust puff that lingers and drifts up
+        if dt < 0.45:
+            k = dt / 0.45
+            rng2 = random.Random(int(ts * 1000) + 7)
+            for i in range(4):
+                a = rng2.random() * 2 * math.pi
+                rr = 0.05 + 0.16 * k + 0.05 * rng2.random()
+                b.sphere((core[0] + math.cos(a) * rr,
+                          core[1] + 0.03 + 0.12 * k,
+                          core[2] + math.sin(a) * rr),
+                         0.022 + 0.038 * k, (0.46, 0.44, 0.40), rings=4, seg=8,
+                         scale=(1.0, 0.7, 1.0))
+        b.mat = MAT_SKIN
+    # --- the mate, spear in hand, watching the work --------------------
+    pose_b = pose_idle(t + 1.2)
+    pose_b.update({"chest": (0.04, 0.16, 0), "neck": (0.06, 0.18, 0),
+                   "shoulder_l": (-0.22, 0, -0.30), "elbow_l": (-0.62, 0, 0)})
+    world_b = add_character(b, "man", pose_b, root=(-2.15, height(-2.15, 1.30), 1.30),
+                            yaw=1.96, scale=1.02, grounded=True, blink=blink_at(t, 2.6))
+    # spear held in his left hand, butt on the ground
+    hand = world_b["wrist_l"][:3, 3]
+    butt = np.array([hand[0] + 0.10, height(hand[0] + 0.10, hand[2] + 0.05), hand[2] + 0.05])
+    tip = butt + np.array([0.02, 1.78, -0.03])
+    b.capsule(butt, tip, 0.023, 0.030, (0.42, 0.31, 0.19), rings=6, seg=9)
+    b.cone(tip - np.array([0.0, 0.02, 0.0]), 0.05, 0.20, (0.36, 0.33, 0.30), seg=8,
+           lean=(0.03, 0.0))
+    # finished flakes and hand-axes on the ground
+    for i in range(8):
+        b.box((-0.55 + i * 0.13, height(-0.55 + i * 0.13, kz + 0.85) + 0.02, kz + 0.85),
+              (0.075, 0.02, 0.12), (0.30, 0.29, 0.27), yaw=i * 0.7)
+    for i, (gx, gz, gy) in enumerate(((0.10, 1.45, 0.5), (0.52, 1.30, -0.7))):
+        b.sphere((gx, height(gx, gz) + 0.05, gz), 0.085, (0.33, 0.31, 0.29),
+                 rings=6, seg=11, scale=(1.45, 0.5, 0.8))
     add_grass_tufts(b, (0.0, 0.0, 0.6), 26, 4.2, seed=17)
     add_grass_tufts(b, (0.2, 0.0, 2.4), 18, 3.0, seed=23)
-    if max(0.0, math.sin(t * 6.5)) > 0.72:
-        for k in range(3):
-            a = k * 2.1
-            b.sphere((-0.52 + math.cos(a) * 0.20, 1.06 + 0.10 + k * 0.04,
-                      0.30 + math.sin(a) * 0.20), 0.016, (1.0, 0.86, 0.55),
-                     rings=4, seg=4, emission=(1.1, 0.85, 0.5))
-    cam = ((1.55, height(1.55, 4.35) + 1.66, 4.35), (-0.05, 0.98, 0.05))
+    # --- camera: low three-quarter, easing in on the hands -------------
+    target = (core[0] + 0.06, core[1] + 0.06, core[2] + 0.02)
+    cam = ((0.58 - 0.12 * p, height(0.58, 3.42) + 1.62 - 0.10 * p, 3.42 - 0.26 * p),
+           target)
     env = dict(sun=(0.55, 0.7, 0.45), sun_colour=(1.06, 0.90, 0.70),
                ambient=(0.26, 0.28, 0.34), ground=(0.22, 0.18, 0.13),
                fog=(0.55, 0.61, 0.70), fog_density=0.0007, exposure=0.70,
-               night=0, moon=(-0.46, 0.50, 0.030), shadow=0.8, fov=0.86,
+               night=0, moon=(-0.46, 0.50, 0.030), shadow=0.8, fov=0.72,
                sky=((0.72, 0.68, 0.60), (0.20, 0.38, 0.66)),
-               cloud=0.55, ao=0.62, bloom=0.35, dof_focus=5.2, dof=0.50)
-    if p > 0:
-        cam = ((1.55 - 0.22 * p, height(1.55, 4.35) + 1.66 - 0.06 * p, 4.35 - 0.40 * p),
-               (-0.05, 0.98, 0.05))
+               cloud=0.55, ao=0.62, bloom=0.35, dof_focus=1.9, dof=0.45,
+               mist=(0.62, 0.66, 0.72), mist_amount=0.13, mist_height=0.95)
     return [b.arrays()], dict(cam=cam, env=env)
 
 

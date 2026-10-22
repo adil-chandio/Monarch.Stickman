@@ -40,8 +40,8 @@ is muxed over it with ffmpeg (`-c:v copy -c:a aac`).
 | time | shot | motion |
 | --- | --- | --- |
 | 0–5 s | moonlit pass | one survivor runs toward camera, camera tracks, layered ridges behind |
-| 5–10 s | campfire | two survivors warm their hands, fire casts real point light, sparks rise |
-| 10–14 s | stone tools | knapped blade held up and shown, spear planted, camera pushes in |
+| 5–10 s | campfire | two survivors warm their hands; the fire is lofted, tapered, flickering flame tongues over a glowing coal bed, with sparks |
+| 10–14 s | stone tools | survivor crouched at a bedrock anvil, hammer stone striking every 0.62 s: chips fly, dust puffs, impact glints; a mate stands by with a spear |
 | 14–18 s | travel | trio walks past, camera leads and pans |
 | 18–30 s | camp | fire, two figures warming hands, slow pull-back under the closing title |
 
@@ -67,3 +67,40 @@ is muxed over it with ffmpeg (`-c:v copy -c:a aac`).
   <https://github.com/google/GNM>. `heads.npz` is a baked derivative (four sampled
   identities) of `gnm_head.npz` from that project.
 * Everything else in this folder: original work for MonarchVoice.
+
+## Motion + sound pass (this revision)
+
+**On-screen action is now built to be read**, not just to move:
+
+* **Knapping cycle** (`scenes3d.shot_tools` + `mesh3d.pose_knap_strike`): a crouched
+  stone-worker braces the core on a bedrock anvil; the right arm lifts through 62 % of a
+  0.62 s beat and drives down on the last 38 %, so every impact lands exactly on the beat.
+  Each strike throws 11 analytic ballistic chips, a dust puff that swells over 0.45 s,
+  and a 0.10 s emissive impact glint. A second survivor stands beside him with a spear.
+* **Fire** (`scenes3d.add_fire`): fourteen lofted flame tongues (curved spine, tapering
+  radius, per-tongue flicker rate) in three temperature layers, a glowing coal bed,
+  rising embers and a soft warm spill, replacing the old flat cones.
+* **Bodies**: shoulder and joint volumes shrunk to the limb radius, a hide shoulder yoke
+  closes the deltoid joint, and a narrower torso capsule removes the inflated look.
+* **Air**: a distance-limited ground-mist term in the shader (`mist`, `mist_amount`,
+  `mist_height`) gives the daylight shots depth separation.
+
+**Sound** (`video/ancient_survival/compose_audio.py`, rewritten) is cut to the picture:
+
+| time | score | effects |
+| --- | --- | --- |
+| 0–5 | D-minor string pad, low drone | cold wind, crickets, owl, gravel footsteps, breath |
+| 5–10 | B-flat pad enters, frame drum from 5 s | ignition riser + whoosh, fire roar, crackles, embers |
+| 10–14 | G-minor, drum pulse, bell motif | **seven stone strikes on the 0.62 s beat**, chips, cloth lift |
+| 14–18 | A, pulse continues | three-way grass footsteps, cloth, wind, birds |
+| 18–23 | F, fuller voicing | fire roar returns, embers, whoosh |
+| 23–30 | build, taiko hits, resolve on D | risers, final impact + bells at 27.65 |
+
+Every sound is synthesised in NumPy (no samples). A synthetic stereo impulse response
+puts score and foley in the same room; the music sidechains under the narrator with a
+110 ms smoothed envelope; the bus is soft-knee compressed, `tanh`-limited and
+peak-normalised to −1 dBFS. Rebuild with:
+
+```bash
+cd video/ancient_survival && python3 compose_audio.py     # -> _build/final_mix.wav
+```

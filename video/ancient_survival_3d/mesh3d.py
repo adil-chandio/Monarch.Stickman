@@ -364,7 +364,7 @@ def add_gnm_head(b: Builder, world: dict, kind: str, skin, hair_col, blink: floa
     hl = 0.142 * front + 0.060 * (1.0 - front) * (1.0 - back) - 0.010 * back
     hl += 0.016 * np.clip(1.0 - np.abs(ax) / 0.055, 0.0, 1.0) * front ** 2
     hl += 0.004 * np.sin(udir * 5.0)
-    hair_mask = (crown > hl) & (L[:, 2] < 0.115) & (np.abs(ax) < 0.105)
+    hair_mask = (crown > hl - 0.004) & (L[:, 2] < 0.115) & (np.abs(ax) < 0.105)
     if key in ("woman", "woman2"):
         # longer at the sides and nape
         hair_mask |= (crown > -0.020) & (np.abs(ax) > 0.056) & (L[:, 2] < -0.01)
@@ -372,8 +372,9 @@ def add_gnm_head(b: Builder, world: dict, kind: str, skin, hair_col, blink: floa
         # keep the ears and jaw clear for the men
         hair_mask &= ~((crown < 0.030) & (np.abs(ax) > 0.050))
     # grow the shell along the normal, thicker over the crown
-    thick = (0.009 + 0.013 * np.clip((crown - hl) / 0.10, 0.0, 1.0)) \
-        * np.clip((crown - hl) / 0.010, 0.0, 1.0)
+    feather = np.clip((crown - hl) / 0.026, 0.0, 1.0)
+    feather = feather * feather * (3.0 - 2.0 * feather)
+    thick = (0.010 + 0.014 * np.clip((crown - hl) / 0.10, 0.0, 1.0)) * feather
     HW = W + Nw * (thick[:, None] * hair_mask[:, None])
     hair_col_v = np.array(hair_col)
     hcol = np.tile(hair_col_v, (len(V), 1))
@@ -509,33 +510,39 @@ class Rig:
         # neck: a smooth column from the chest up into the scanned head
         b.mat = MAT_SKIN
         neck_top = world["neck"][:3, 3]
-        b.capsule(neck_top - up * 0.02, head - up * 0.040, 0.060, 0.058,
+        b.capsule(neck_top - up * 0.02, head + up * 0.012, 0.064, 0.058,
                   tuple(c * 0.90 for c in skin), rings=8, seg=26)
         # shoulders: soft deltoid masses under the tunic
         for sd in (-1, 1):
-            b.sphere(head + side * (sd * 0.135) - up * 0.235 + fwd * 0.005, 0.052, skin,
-                     rings=10, seg=16, scale=(1.25, 0.70, 0.92))
+            b.sphere(head + side * (sd * 0.132) - up * 0.238 + fwd * 0.005, 0.046, skin,
+                     rings=9, seg=16, scale=(1.30, 0.72, 0.94))
 
         # joints: spheres that blend the capsules into limbs
         b.mat = MAT_SKIN
-        for name, rr in (("elbow_l", 0.058), ("elbow_r", 0.058), ("knee_l", 0.070),
-                         ("knee_r", 0.070), ("wrist_l", 0.044), ("wrist_r", 0.044),
-                         ("ankle_l", 0.054), ("ankle_r", 0.054)):
+        for name, rr in (("elbow_l", 0.050), ("elbow_r", 0.050), ("knee_l", 0.060),
+                         ("knee_r", 0.060), ("wrist_l", 0.036), ("wrist_r", 0.036),
+                         ("ankle_l", 0.044), ("ankle_r", 0.044)):
             jp = world[name][:3, 3]
             b.sphere(jp, rr, skin, rings=10, seg=18, scale=(1.0, 1.0, 1.0))
         for sd in (-1, 1):
             sh = world["shoulder_l" if sd < 0 else "shoulder_r"][:3, 3]
-            b.sphere(sh, 0.072, skin, rings=10, seg=18, scale=(1.0, 1.02, 1.0))
+            b.sphere(sh, 0.058, skin, rings=9, seg=18, scale=(1.0, 1.02, 1.0))
         # ---- torso: one smooth hide tunic from thigh to collarbone ----
         b.mat = MAT_CLOTH
         chest = world["chest"][:3, 3]
         pelvis = world["pelvis"][:3, 3]
         hip = pelvis + np.array([0, -0.16, 0])
-        b.capsule(hip + np.array([0, -0.06, 0]), chest + np.array([0, 0.04, 0]),
-                  0.168, 0.150, tunic, rings=16, seg=34, taper_power=0.6)
+        b.capsule(hip + np.array([0, -0.06, 0]), chest + np.array([0, 0.045, 0]),
+                  0.152, 0.138, tunic, rings=16, seg=34, taper_power=0.6)
+        # shoulder yoke: a short hide sleeve that closes the deltoid joint
+        for side_ in ("l", "r"):
+            sh = world[f"shoulder_{side_}"][:3, 3]
+            el = world[f"elbow_{side_}"][:3, 3]
+            b.capsule(sh - (el - sh) * 0.12, sh + (el - sh) * 0.30, 0.070, 0.056,
+                      tuple(c * 0.99 for c in tunic), rings=6, seg=20)
         # hide hem flares over the thighs like a short skirt
         hem_dark = tuple(c * 0.86 for c in tunic)
-        b.capsule(hip + np.array([0, 0.02, 0]), hip - np.array([0, 0.14, 0]), 0.164, 0.178,
+        b.capsule(hip + np.array([0, 0.02, 0]), hip - np.array([0, 0.14, 0]), 0.150, 0.166,
                   hem_dark, rings=8, seg=34)
         b.mat = MAT_SKIN
         # kneeling/sitting support: a folded calf volume that reaches the floor
@@ -626,6 +633,51 @@ def pose_walk(phase: float) -> dict[str, tuple[float, float, float]]:
     }
 
 
+def pose_knap_strike(phase: float) -> dict[str, tuple[float, float, float]]:
+    """Stone knapping cycle: lift the hammer stone, then snap it down.
+
+    Phase 0 is the end of a strike; the arm rises through 0.62 and drives down
+    over the last 0.38, so the impact lands exactly on phase 1.0 (== 0.0).
+    """
+    c = phase % 1.0
+    if c < 0.62:
+        k = c / 0.62
+        lift = k ** 1.5
+        drive = 0.0
+    else:
+        k = (c - 0.62) / 0.38
+        lift = 1.0 - k ** 0.55
+        drive = k ** 1.8
+    base = pose_knap_stand(phase * 2.0)
+    base.update({
+        "shoulder_r": (-1.15 - 1.15 * lift + 0.10 * drive, 0.06, 0.30),
+        "elbow_r": (0.75 - 0.90 * lift, 0, 0),
+        "wrist_r": (0.05 - 0.32 * lift, 0, 0),
+        "shoulder_l": (0.34, 0, -0.26),
+        "elbow_l": (-0.72, 0, 0),
+        "chest": (0.24 - 0.12 * lift, -0.10 * lift, 0),
+        "spine": (0.52 - 0.10 * lift, 0.05 * lift, 0),
+        "neck": (-0.30, 0.10, 0),
+    })
+    return base
+
+
+def pose_knap_stand(t: float) -> dict[str, tuple[float, float, float]]:
+    """Standing stone-worker base: knees soft, torso pitched over the anvil."""
+    breathe = math.sin(t * 1.9) * 0.02
+    return {
+        "pelvis": (0.06, 0, 0),
+        "spine": (0.52 + breathe, 0, 0),
+        "chest": (0.24, 0, 0),
+        "neck": (-0.34, math.sin(t * 0.8) * 0.08, 0),
+        "hip_l": (0.88, 0, 0.16), "knee_l": (1.52, 0, 0), "ankle_l": (-0.64, 0, 0),
+        "hip_r": (0.78, 0, -0.16), "knee_r": (1.46, 0, 0), "ankle_r": (-0.60, 0, 0),
+        "shoulder_l": (0.34, 0, -0.26), "elbow_l": (-0.72, 0, 0),
+        "shoulder_r": (-1.15, 0, 0.30), "elbow_r": (0.75, 0, 0),
+        "wrist_r": (0.05, 0, 0),
+    }
+
+
 def pose_point(t: float) -> dict[str, tuple[float, float, float]]:
     p = pose_idle(t)
     p.update({
@@ -661,8 +713,9 @@ def pose_warm(t: float) -> dict[str, tuple[float, float, float]]:
         "neck": (-0.14, 0, 0),
         "hip_l": (-0.12, 0, 0.10), "knee_l": (0.16, 0, 0), "ankle_l": (-0.05, 0, 0),
         "hip_r": (-0.06, 0, -0.10), "knee_r": (0.10, 0, 0), "ankle_r": (-0.03, 0, 0),
-        "shoulder_l": (-0.95 + rub, 0.10, -0.24), "elbow_l": (-0.85 - rub, 0, 0),
-        "shoulder_r": (-0.92 - rub, -0.10, 0.24), "elbow_r": (-0.88 + rub, 0, 0),
+        "shoulder_l": (-0.74 + rub * 0.6, 0.12, -0.30), "elbow_l": (-1.16 - rub, 0, 0),
+        "shoulder_r": (-0.72 - rub * 0.6, -0.12, 0.30), "elbow_r": (-1.18 + rub, 0, 0),
+        "wrist_l": (0.25, 0, 0), "wrist_r": (0.25, 0, 0),
     }
 
 
@@ -671,7 +724,7 @@ def pose_knap(t: float) -> dict[str, tuple[float, float, float]]:
     beat = math.sin(t * 7.0)
     return {
         "pelvis": (1.25, 0, 0), "spine": (-0.05, 0, 0), "chest": (0.18, 0, 0),
-        "neck": (-0.30, 0, 0),
+        "neck": (-0.30, 0.10, 0),
         "hip_l": (-1.55, 0, 0.30), "knee_l": (2.25, 0, 0), "ankle_l": (-0.60, 0, 0),
         "hip_r": (-1.48, 0, -0.34), "knee_r": (2.20, 0, 0), "ankle_r": (-0.58, 0, 0),
         "shoulder_l": (-1.15, 0.10, -0.35), "elbow_l": (-0.75, 0, 0),
@@ -698,7 +751,7 @@ def pose_sit_warm(t: float) -> dict[str, tuple[float, float, float]]:
     rub = math.sin(t * 5.0) * 0.10
     return {
         "pelvis": (1.20, 0, 0), "spine": (-0.10, 0, 0), "chest": (0.28, 0, 0),
-        "neck": (-0.30, 0, 0),
+        "neck": (-0.30, 0.10, 0),
         "hip_l": (-1.55, 0, 0.34), "knee_l": (2.35, 0, 0), "ankle_l": (-0.55, 0, 0),
         "hip_r": (-1.55, 0, -0.34), "knee_r": (2.35, 0, 0), "ankle_r": (-0.55, 0, 0),
         "shoulder_l": (-1.35 + rub, 0.22, -0.62), "elbow_l": (-1.05 - rub, 0, 0),

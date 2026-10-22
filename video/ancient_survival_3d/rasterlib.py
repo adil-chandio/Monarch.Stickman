@@ -40,7 +40,9 @@ class _Env(ctypes.Structure):
                 ("sky_hor", ctypes.c_float * 3), ("sky_top", ctypes.c_float * 3),
                 ("cloud", ctypes.c_float), ("milky", ctypes.c_float),
                 ("ao_strength", ctypes.c_float), ("bloom", ctypes.c_float),
-                ("dof_focus", ctypes.c_float), ("dof_amt", ctypes.c_float)]
+                ("dof_focus", ctypes.c_float), ("dof_amt", ctypes.c_float),
+                ("mist", ctypes.c_float * 3), ("mist_amount", ctypes.c_float),
+                ("mist_height", ctypes.c_float)]
 
 
 def ensure_library(rebuild: bool = False) -> Path:
@@ -83,7 +85,8 @@ class Raster:
                     light=None, light_colour=(0, 0, 0), light_range=4.0,
                     light2=None, light2_colour=(0, 0, 0), light2_range=3.0,
                     sky=None, cloud=0.0, milky=0.0, ao=0.62, bloom=0.55,
-                    dof_focus=0.0, dof=0.0) -> None:
+                    dof_focus=0.0, dof=0.0, mist=None, mist_amount=0.0,
+                    mist_height=0.9) -> None:
         self.env.dir = tuple(float(v) for v in sun_dir)
         self.env.colour = tuple(float(v) for v in sun_colour)
         self.env.ambient = tuple(float(v) for v in ambient)
@@ -109,6 +112,9 @@ class Raster:
         self.env.bloom = float(bloom)
         self.env.dof_focus = float(dof_focus)
         self.env.dof_amt = float(dof)
+        self.env.mist = tuple(float(v) for v in (mist or (0.0, 0.0, 0.0)))
+        self.env.mist_amount = float(mist_amount)
+        self.env.mist_height = float(mist_height)
 
     def render(self, meshes) -> np.ndarray:
         keep = []

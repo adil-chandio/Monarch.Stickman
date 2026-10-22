@@ -67,6 +67,9 @@ typedef struct {
     float bloom;            /* 0..1                              */
     float dof_focus;        /* focus distance (world units)      */
     float dof_amt;          /* 0 = off                           */
+    float mist[3];          /* ground-hugging mist colour         */
+    float mist_amount;      /* 0..1                               */
+    float mist_height;      /* metres; e-folding height           */
 } Env;
 
 static inline void vsub(const float *a, const float *b, float *o) {
@@ -511,6 +514,15 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
                 lit += emi[k] * 1.75f;
                 float fog = 1.0f - expf(-env->fog_density * z * z);
                 lit = lit * (1.0f - fog) + env->fog[k] * fog;
+                if (env->mist_amount > 0.001f && wp[1] < 3.0f) {
+                    /* mist pools in the low ground: dense at the feet, gone by
+                       chest height, and it thickens with distance */
+                    float h = wp[1] < 0.0f ? 0.0f : wp[1];
+                    float fall = expf(-h / fmaxf(0.05f, env->mist_height));
+                    float reach = 1.0f - expf(-z * 0.28f);
+                    float m = env->mist_amount * fall * (0.30f + 0.70f * reach);
+                    lit = lit * (1.0f - m) + env->mist[k] * m;
+                }
                 lin[pi * 3 + k] = lit < 0.0f ? 0.0f : lit;
             }
             if (emissive > 0.01f) glow[pi] = fminf(1.0f, emissive * 0.5f);

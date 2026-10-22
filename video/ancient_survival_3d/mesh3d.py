@@ -372,7 +372,7 @@ def add_gnm_head(b: Builder, world: dict, kind: str, skin, hair_col, blink: floa
         # keep the ears and jaw clear for the men
         hair_mask &= ~((crown < 0.030) & (np.abs(ax) > 0.050))
     # grow the shell along the normal, thicker over the crown
-    feather = np.clip((crown - hl) / 0.026, 0.0, 1.0)
+    feather = np.clip((crown - hl) / 0.010, 0.0, 1.0)
     feather = feather * feather * (3.0 - 2.0 * feather)
     thick = (0.010 + 0.014 * np.clip((crown - hl) / 0.10, 0.0, 1.0)) * feather
     HW = W + Nw * (thick[:, None] * hair_mask[:, None])
@@ -526,20 +526,21 @@ class Rig:
             b.sphere(jp, rr, skin, rings=10, seg=18, scale=(1.0, 1.0, 1.0))
         for sd in (-1, 1):
             sh = world["shoulder_l" if sd < 0 else "shoulder_r"][:3, 3]
-            b.sphere(sh, 0.058, skin, rings=9, seg=18, scale=(1.0, 1.02, 1.0))
+            b.sphere(sh, 0.052, skin, rings=9, seg=18, scale=(1.0, 1.02, 1.0))
         # ---- torso: one smooth hide tunic from thigh to collarbone ----
         b.mat = MAT_CLOTH
         chest = world["chest"][:3, 3]
         pelvis = world["pelvis"][:3, 3]
         hip = pelvis + np.array([0, -0.16, 0])
-        b.capsule(hip + np.array([0, -0.06, 0]), chest + np.array([0, 0.045, 0]),
-                  0.152, 0.138, tunic, rings=16, seg=34, taper_power=0.6)
-        # shoulder yoke: a short hide sleeve that closes the deltoid joint
+        b.capsule(hip + np.array([0, -0.06, 0]), chest + np.array([0, 0.085, 0]),
+                  0.152, 0.150, tunic, rings=18, seg=34, taper_power=0.45)
+        # shoulder yoke: a flattened hide cap that closes the deltoid joint
         for side_ in ("l", "r"):
             sh = world[f"shoulder_{side_}"][:3, 3]
             el = world[f"elbow_{side_}"][:3, 3]
-            b.capsule(sh - (el - sh) * 0.12, sh + (el - sh) * 0.30, 0.070, 0.056,
-                      tuple(c * 0.99 for c in tunic), rings=6, seg=20)
+            axis = el - sh
+            b.sphere(sh + axis * 0.10, 0.080, tuple(c * 0.98 for c in tunic),
+                     rings=10, seg=20, scale=(1.03, 0.82, 1.03))
         # hide hem flares over the thighs like a short skirt
         hem_dark = tuple(c * 0.86 for c in tunic)
         b.capsule(hip + np.array([0, 0.02, 0]), hip - np.array([0, 0.14, 0]), 0.150, 0.166,

@@ -131,6 +131,9 @@ static void build_shadow(const Mesh *m, int nmesh) {
         for (int ti = 0; ti < mesh->nt; ++ti) {
             const int32_t *idx = &mesh->t[ti * 3];
             float px[3], py[3], pz[3];
+            /* photo cards do not cast shadow-map shadows (their silhouette is
+               a flat plane); they get a contact-shadow mesh instead */
+            if (mesh->m && mesh->m[idx[0]] >= 20.0f) continue;
             for (int k = 0; k < 3; ++k) {
                 const float *p = &mesh->v[idx[k] * 3];
                 light_project(p, &px[k], &py[k], &pz[k]);
@@ -293,6 +296,55 @@ typedef struct {
     float cx, cy, cz;
 } Vtx;
 
+
+/* ------------------------------------------------------------ photo sprites */
+/* Material ids >= 20 are billed as RGBA photo cards: the texture is sampled
+   with bilinear filtering, alpha-tested and alpha-blended, and shaded by the
+   same sun / fire / fog / mist model as the rest of the scene. This is how the
+   AI-generated photoreal humans are placed inside the 3D world. */
+static const uint8_t *g_tex = NULL;
+static int g_tex_w = 0, g_tex_h = 0;
+
+void set_texture(const uint8_t *rgba, int w, int h) {
+    g_tex = rgba;
+    g_tex_w = w;
+    g_tex_h = h;
+}
+
+static inline int tex_ready(void) { return g_tex != NULL && g_tex_w > 0 && g_tex_h > 0; }
+
+static inline void sample_tex(float u, float v, float *out) {
+    if (!tex_ready()) { out[0] = out[1] = out[2] = 1.0f; out[3] = 1.0f; return; }
+    if (u < 0.0f) u = 0.0f;
+    if (u > 0.999999f) u = 0.999999f;
+    if (v < 0.0f) v = 0.0f;
+    if (v > 0.999999f) v = 0.999999f;
+    float fx = u * (float)g_tex_w - 0.5f, fy = v * (float)g_tex_h - 0.5f;
+    int x0 = (int)floorf(fx), y0 = (int)floorf(fy);
+    float tx = fx - (float)x0, ty = fy - (float)y0;
+    int x1 = x0 + 1, y1 = y0 + 1;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > g_tex_w - 1) x1 = g_tex_w - 1;
+    if (y1 > g_tex_h - 1) y1 = g_tex_h - 1;
+    if (x0 > g_tex_w - 1) x0 = g_tex_w - 1;
+    if (y0 > g_tex_h - 1) y0 = g_tex_h - 1;
+    const uint8_t *p00 = g_tex + ((size_t)y0 * g_tex_w + x0) * 4;
+    const uint8_t *p10 = g_tex + ((size_t)y0 * g_tex_w + x1) * 4;
+    const uint8_t *p01 = g_tex + ((size_t)y1 * g_tex_w + x0) * 4;
+    const uint8_t *p11 = g_tex + ((size_t)y1 * g_tex_w + x1) * 4;
+    for (int k = 0; k < 4; ++k) {
+        float a = (float)p00[k] * (1 - tx) + (float)p10[k] * tx;
+        float b = (float)p01[k] * (1 - tx) + (float)p11[k] * tx;
+        out[k] = (a * (1 - ty) + b * ty) / 255.0f;
+    }
+    /* sRGB -> linear for the colour channels; alpha stays linear */
+    for (int k = 0; k < 3; ++k) {
+        float c = out[k];
+        out[k] = c <= 0.04045f ? c / 12.92f : powf((c + 0.055f) / 1.055f, 2.4f);
+    }
+}
+
 static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *cam,
                        const Env *env, int W, int H, float tan_half, float aspect,
                        float *zbuf, float *lin, float *glow, float *normal_out,
@@ -331,9 +383,87 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
             float iz = w0 * invz[0] + w1 * invz[1] + w2 * invz[2];
             float z = 1.0f / iz;
             size_t pi = (size_t)y * W + x;
-            if (z >= zbuf[pi]) continue;
-            zbuf[pi] = z;
             float b0 = w0 * invz[0] * z, b1 = w1 * invz[1] * z, b2 = w2 * invz[2] * z;
+            int tmat = (int)(A->mat + 0.35f);
+            float tcol[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+            if (tmat >= 20) {
+                float tu = A->uv[0] * b0 + B->uv[0] * b1 + C->uv[0] * b2;
+                float tv = A->uv[1] * b0 + B->uv[1] * b1 + C->uv[1] * b2;
+                sample_tex(tu, tv, tcol);
+                if (tcol[3] < 0.004f) continue;
+            }
+            if (z >= zbuf[pi]) continue;
+            if (tmat < 20 || tcol[3] > 0.55f) zbuf[pi] = z;
+            if (tmat >= 20) {
+                /* ---- photo card: texture albedo under the scene light ---- */
+                float wp[3], na[3];
+                for (int k = 0; k < 3; ++k) {
+                    wp[k] = A->p[k] * b0 + B->p[k] * b1 + C->p[k] * b2;
+                    na[k] = A->n[k] * b0 + B->n[k] * b1 + C->n[k] * b2;
+                }
+                vnorm(na);
+                /* ---- rounded-body shading ----------------------------------
+                   A photo card is a flat quad, but the person on it is roughly
+                   a vertical cylinder. The vertex colour carries the card-local
+                   u (0..1) in its blue channel, so the shading normal can be
+                   swung around the body axis: light then falls off towards the
+                   silhouettes instead of lighting the cut-out flat. */
+                {
+                    float lu = A->c[2] * b0 + B->c[2] * b1 + C->c[2] * b2;
+                    if (lu < 0.0f) lu = 0.0f;
+                    if (lu > 1.0f) lu = 1.0f;
+                    if (lu >= 0.0f && lu <= 1.0f) {
+                        float upv[3] = {0.0f, 1.0f, 0.0f};
+                        float sidev[3];
+                        vcross(upv, na, sidev);
+                        float sl = sqrtf(sidev[0] * sidev[0] + sidev[1] * sidev[1]
+                                        + sidev[2] * sidev[2]);
+                        if (sl > 1e-4f) {
+                            float ang = (lu - 0.5f) * 2.7f;
+                            float sa = sinf(ang), ca = cosf(ang);
+                            float nn2[3];
+                            for (int q = 0; q < 3; ++q)
+                                nn2[q] = sidev[q] / sl * sa + na[q] * ca + 0.10f * (0.5f - lu) * 0.0f;
+                            vnorm(nn2);
+                            for (int q = 0; q < 3; ++q) na[q] = nn2[q];
+                        }
+                    }
+                }
+                float ndl = vdot(na, env->dir);
+                float sh = 1.0f;
+                float bias = 0.0014f + 0.0130f * (1.0f - fmaxf(0.0f, ndl));
+                sh = shadow_factor(wp, bias);
+                sh = 1.0f - env->shadow_strength * (1.0f - sh)
+                     * smoothstepf(0.02f, 0.28f, ndl);
+                float band = 0.30f + 0.70f * smoothstepf(0.0f, 0.72f, fmaxf(0.0f, ndl));
+                float hemi = 0.5f + 0.5f * na[1];
+                float p1 = point_term(wp, na, env->light, env->light_range);
+                float p2 = point_term(wp, na, env->light2, env->light2_range);
+                float alpha = tcol[3] < 0.0f ? 0.0f : (tcol[3] > 1.0f ? 1.0f : tcol[3]);
+                for (int k = 0; k < 3; ++k) {
+                    float lit = tcol[k] * (env->ambient[k] * 1.35f * hemi
+                                           + env->ground[k] * (1.0f - hemi) * 0.55f
+                                           + env->colour[k] * band * 0.82f * sh)
+                                + tcol[k] * env->light_colour[k] * p1 * 2.6f
+                                + tcol[k] * env->light2_colour[k] * p2 * 2.1f;
+                    float fog = 1.0f - expf(-env->fog_density * z * z);
+                    lit = lit * (1.0f - fog) + env->fog[k] * fog;
+                    if (env->mist_amount > 0.001f && wp[1] < 3.0f) {
+                        float h = wp[1] < 0.0f ? 0.0f : wp[1];
+                        float fall = expf(-h / fmaxf(0.05f, env->mist_height));
+                        float reach = 1.0f - expf(-z * 0.28f);
+                        float m = env->mist_amount * fall * (0.30f + 0.70f * reach);
+                        lit = lit * (1.0f - m) + env->mist[k] * m;
+                    }
+                    if (lit < 0.0f) lit = 0.0f;
+                    if (alpha >= 0.999f) {
+                        lin[pi * 3 + k] = lit;
+                    } else {
+                        lin[pi * 3 + k] = lin[pi * 3 + k] * (1.0f - alpha) + lit * alpha;
+                    }
+                }
+                continue;
+            }
 
             float wp[3], na[3], col[3], emi[3];
             for (int k = 0; k < 3; ++k) {

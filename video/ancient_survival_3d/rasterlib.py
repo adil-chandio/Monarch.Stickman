@@ -60,7 +60,11 @@ class Raster:
                                ctypes.POINTER(ctypes.c_uint8), ctypes.POINTER(ctypes.c_float),
                                ctypes.POINTER(ctypes.c_float)]
         lib.render.restype = None
+        lib.set_texture.argtypes = [ctypes.POINTER(ctypes.c_uint8), ctypes.c_int,
+                                    ctypes.c_int]
+        lib.set_texture.restype = None
         self.lib = lib
+        self._tex_ref = None
         self.w, self.h = width, height
         self.cam = _Camera()
         self.cam.up = (0.0, 1.0, 0.0)
@@ -72,6 +76,19 @@ class Raster:
         self.out = np.zeros(height * width * 3, np.uint8)
         self.depth = np.zeros(height * width, np.float32)
         self.normals = np.zeros(height * width * 3, np.float32)
+
+    def set_texture(self, rgba: np.ndarray | None) -> None:
+        """Bind an HxWx4 uint8 atlas. Material ids >= 20 sample it as photo cards."""
+        if rgba is None:
+            self._tex_ref = None
+            self.lib.set_texture(None, 0, 0)
+            return
+        arr = np.ascontiguousarray(rgba, dtype=np.uint8)
+        if arr.ndim != 3 or arr.shape[2] != 4:
+            raise ValueError("texture must be H x W x 4 uint8")
+        self._tex_ref = arr                      # keep alive across renders
+        self.lib.set_texture(arr.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8)),
+                             int(arr.shape[1]), int(arr.shape[0]))
 
     def camera(self, pos, target, fov: float | None = None, up=(0.0, 1.0, 0.0)) -> None:
         self.cam.pos = tuple(float(v) for v in pos)

@@ -29,9 +29,9 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(REPO / "video" / "ancient_survival"))
 
 from rasterlib import Raster          # noqa: E402
-from scenes3d import SHOTS            # noqa: E402
+from scenes3d import SHOTS, apply_env  # noqa: E402
 
-RW, RH = 720, 1280                    # raster size (upscaled to 1080x1920)
+RW, RH = 960, 1707                    # raster size (upscaled to 1080x1920)
 W, H, FPS, DURATION = 1080, 1920, 24, 30
 FONTS = REPO / "video" / "ancient_survival" / "fonts"
 OUT = REPO / "video" / "Ancient_Survival_3D_30s_Reel.mp4"
@@ -40,15 +40,17 @@ BUILD = HERE / "_build"
 CAPTIONS = [
     (0.00, 1.73, "RAAT KA", "JUNGLE..."),
     (1.73, 3.58, "NA PHONE.", "NA SAFE GHAR."),
-    (3.58, 6.40, "ANCIENT LOG", "KAISE BACHE?"),
+    (3.58, 5.00, "ANCIENT LOG", "KAISE BACHE?"),
+    (5.00, 6.40, "AAG =", "PEHLA GHAR"),
     (6.40, 8.24, "JAWAB?", "TEAMWORK."),
-    (8.24, 11.50, "PEHRA + BERRIES", "+ ROOTS"),
-    (11.50, 13.35, "SHARP PATHAR", "SE TOOLS"),
-    (13.35, 14.92, "MIL KAR", "SHIKAR"),
-    (14.92, 18.48, "AAG: ROSHNI,", "GARAMI + KHANA"),
-    (18.48, 21.37, "SAB CAVES MEIN", "NAHI REHTE THE!"),
-    (21.37, 22.67, "CAMPS BHI", "BADALTE THE"),
-    (22.67, 25.50, "ASLI POWER?", "STRENGTH NAHI"),
+    (8.24, 10.00, "PEHRA + BERRIES", "+ ROOTS"),
+    (10.00, 12.10, "PATHAR TODKAR", "SHARP EDGE"),
+    (12.10, 14.00, "SHARP PATHAR", "SE TOOLS"),
+    (14.00, 16.20, "MIL KAR", "SHIKAR"),
+    (16.20, 18.60, "AAG: ROSHNI,", "GARAMI + KHANA"),
+    (18.60, 21.40, "SAB CAVES MEIN", "NAHI REHTE THE!"),
+    (21.40, 22.70, "CAMPS BHI", "BADALTE THE"),
+    (22.70, 25.50, "ASLI POWER?", "STRENGTH NAHI"),
     (25.50, 27.65, "PLANNING", "+ EK DOOSRE KA SAATH"),
     (27.65, 30.00, "SAATH = SURVIVAL", "MONARCHVOICE"),
 ]
@@ -130,9 +132,7 @@ class Reel3D:
         meshes, opts = fn(t, p)
         env = opts["env"]
         self.r.camera(*opts["cam"], fov=env["fov"])
-        self.r.environment(env["sun"], env["sun_colour"], env["ambient"], env["ground"],
-                           env["fog"], env["fog_density"], env["exposure"],
-                           env["night"], env["moon"], env["shadow"])
+        apply_env(self.r, env)
         small = Image.fromarray(self.r.render(meshes))
         im = small.resize((W, H), Image.Resampling.BICUBIC)
         im = im.filter(ImageFilter.UnsharpMask(radius=1.4, percent=42, threshold=2))

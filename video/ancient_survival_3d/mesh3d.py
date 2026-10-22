@@ -178,12 +178,19 @@ class Builder:
                 self.quad(a, d, c, b, colour)
 
     # ---- output ---------------------------------------------------------
-    def arrays(self):
+    def arrays(self, jitter: float = 0.022):
         v = np.asarray(self.v, np.float32) if self.v else np.zeros((0, 3), np.float32)
         n = np.asarray(self.n, np.float32) if self.n else np.zeros((0, 3), np.float32)
         c = np.asarray(self.c, np.float32) if self.c else np.zeros((0, 3), np.float32)
         e = np.asarray(self.e, np.float32) if self.e else np.zeros((0, 3), np.float32)
         t = np.asarray(self.t, np.int32) if self.t else np.zeros((0, 3), np.int32)
+        if jitter > 0 and len(c) and len(t):
+            # per-triangle tonal noise: breaks up flat facets like brush work
+            rng = np.random.default_rng(7)
+            k = (1.0 + rng.normal(0.0, jitter, len(t))).astype(np.float32)
+            c = c.copy()
+            c[t.reshape(-1)] *= np.repeat(k, 3)[:, None]
+            np.clip(c, 0.0, 1.6, out=c)
         return v, n, c, e, t
 
 
@@ -268,7 +275,7 @@ class Rig:
              hair: tuple[float, float, float] = (0.10, 0.08, 0.07),
              tunic: tuple[float, float, float] = (0.55, 0.34, 0.13),
              skin: tuple[float, float, float] = (0.80, 0.58, 0.40),
-             grey_hair: bool = False) -> None:
+             grey_hair: bool = False, kind: str = "man") -> None:
         p = {bone.name: bone.colour for bone in BONES}
         if palette:
             p.update(palette)
@@ -277,37 +284,119 @@ class Rig:
             bpos = world[bone.joints[1]][:3, 3]
             shade = p[bone.name]
             b.capsule(a, bpos, bone.radius[0], bone.radius[1], shade, rings=5, seg=8)
-        # ---- head: skull + jaw + brow + nose + eyes + hair ----
+        # ---- head: skull, face planes, eyes, brows, nose, mouth, ears, hair ----
         head = world["head"][:3, 3]
         fwd = _facing(world)
-        b.sphere(head, 0.118, skin, rings=10, seg=14, scale=(0.96, 1.02, 0.94))
-        b.sphere(head + np.array([0, -0.055, 0]) + fwd * 0.020, 0.088, skin,
-                 rings=7, seg=12, scale=(0.92, 0.80, 0.92))
-        brow = head + np.array([0, 0.040, 0]) + fwd * 0.088
-        b.box(brow, (0.150, 0.030, 0.050), skin, yaw=0.0)
-        nose_base = head + np.array([0, -0.020, 0]) + fwd * 0.086
-        # nose: a small tapered wedge pushed along the facing vector
-        tip = nose_base + fwd * 0.052
-        b.capsule(nose_base, tip, 0.030, 0.012, skin, rings=3, seg=6)
-        for side in (-1, 1):
-            eye = head + np.array([side * 0.048, 0.008, 0]) + fwd * 0.104
-            b.sphere(eye, 0.017, (0.05, 0.04, 0.05), rings=5, seg=7)
-            brow = head + np.array([side * 0.050, 0.044, 0]) + fwd * 0.100
-            b.box(brow, (0.048, 0.014, 0.020), (0.16, 0.11, 0.09),
-                  yaw=math.atan2(fwd[0], fwd[2]))
-        ear_col = skin
-        for side in (-1, 1):
-            b.sphere(head + np.array([side * 0.112, -0.005, 0]), 0.035, ear_col,
-                     rings=5, seg=7, scale=(0.5, 1.0, 0.8))
-        cap_colour = (0.60, 0.60, 0.60) if grey_hair else hair
-        b.sphere(head + np.array([0, 0.022, 0]) - fwd * 0.028, 0.125, cap_colour,
-                 rings=10, seg=16, scale=(1.02, 1.05, 1.02))
-        # a swept fringe and a low ponytail give the silhouette a hand-drawn feel
-        b.sphere(head + np.array([0, 0.072, 0]) + fwd * 0.028, 0.086, cap_colour,
-                 rings=6, seg=10, scale=(1.06, 0.55, 0.95))
-        b.capsule(head + np.array([0, 0.03, 0]) - fwd * 0.10,
-                  head + np.array([0, -0.13, 0]) - fwd * 0.14, 0.055, 0.030, cap_colour,
+        side = np.array([fwd[2], 0.0, -fwd[0]])
+        up = np.array([0.0, 1.0, 0.0])
+
+        def hp(sx: float, sy: float, sz: float) -> np.ndarray:
+            return head + side * sx + up * sy + fwd * sz
+
+        hair_col = (0.66, 0.65, 0.63) if grey_hair else hair
+        hair_dark = tuple(c * 0.72 for c in hair_col)
+        lip_col = (skin[0] * 0.86, skin[1] * 0.52, skin[2] * 0.48)
+        shade_skin = (skin[0] * 0.80, skin[1] * 0.66, skin[2] * 0.62)
+
+        # cranial mass, face plate and tapered jaw give a real head silhouette
+        b.sphere(hp(0, 0.018, -0.010), 0.105, skin, rings=12, seg=16,
+                 scale=(0.93, 1.06, 0.99))
+        b.sphere(hp(0, -0.028, 0.040), 0.078, skin, rings=9, seg=14,
+                 scale=(0.90, 0.88, 0.84))
+        b.sphere(hp(0, -0.082, 0.034), 0.056, skin, rings=8, seg=12,
+                 scale=(0.78, 0.64, 0.84))
+        b.sphere(hp(0, -0.092, 0.060), 0.024, skin, rings=6, seg=9,
+                 scale=(1.10, 0.85, 0.92))
+        for sd in (-1, 1):
+            b.sphere(hp(sd * 0.052, -0.024, 0.052), 0.022, skin, rings=6, seg=9,
+                     scale=(1.05, 0.85, 0.72))
+
+        # brow ridge + glabella
+        b.capsule(hp(-0.046, 0.026, 0.076), hp(0.046, 0.026, 0.076), 0.010, 0.010,
+                  skin, rings=4, seg=7)
+        b.sphere(hp(0, 0.023, 0.080), 0.012, skin, rings=5, seg=8, scale=(1.2, 0.8, 0.7))
+
+        # nose: bridge, tip, wings and dark nostrils
+        b.capsule(hp(0, 0.012, 0.076), hp(0, -0.010, 0.088), 0.010, 0.013, skin,
                   rings=4, seg=8)
+        b.sphere(hp(0, -0.013, 0.090), 0.0135, skin, rings=6, seg=9,
+                 scale=(1.0, 0.85, 0.95))
+        for sd in (-1, 1):
+            b.sphere(hp(sd * 0.012, -0.019, 0.086), 0.0075, skin, rings=5, seg=7,
+                     scale=(0.9, 0.8, 0.8))
+            b.sphere(hp(sd * 0.008, -0.023, 0.087), 0.0040, (0.28, 0.18, 0.14),
+                     rings=4, seg=6)
+
+        # eyes: socket shadow, sclera, iris, pupil, glint, lids
+        for sd in (-1, 1):
+            b.sphere(hp(sd * 0.035, -0.002, 0.068), 0.026, shade_skin, rings=6, seg=10,
+                     scale=(1.0, 0.92, 0.72))
+            b.sphere(hp(sd * 0.035, -0.002, 0.080), 0.0148, (0.84, 0.82, 0.78),
+                     rings=6, seg=10, scale=(1.0, 0.80, 0.68))
+            b.sphere(hp(sd * 0.035, -0.002, 0.0902), 0.0074, (0.24, 0.14, 0.07),
+                     rings=5, seg=9, scale=(1.0, 1.0, 0.5))
+            b.sphere(hp(sd * 0.035, -0.002, 0.0928), 0.0036, (0.03, 0.02, 0.02),
+                     rings=4, seg=7, scale=(1.0, 1.0, 0.45))
+            b.sphere(hp(sd * 0.040, 0.001, 0.0940), 0.0022, (1.0, 0.98, 0.94),
+                     rings=3, seg=6, emission=(0.7, 0.7, 0.66))
+            b.sphere(hp(sd * 0.035, 0.006, 0.081), 0.0155, skin, rings=5, seg=9,
+                     scale=(1.05, 0.40, 0.60))
+            b.sphere(hp(sd * 0.035, -0.015, 0.081), 0.0135, skin, rings=5, seg=9,
+                     scale=(1.0, 0.30, 0.55))
+            b.capsule(hp(sd * 0.014, 0.026, 0.086), hp(sd * 0.050, 0.024, 0.079),
+                      0.0052, 0.0042, hair_dark, rings=3, seg=6)
+
+        # mouth: upper lip, lower lip, shadow line
+        b.capsule(hp(-0.017, -0.044, 0.082), hp(0.017, -0.044, 0.082), 0.0060, 0.0060,
+                  lip_col, rings=4, seg=7)
+        b.sphere(hp(0, -0.053, 0.080), 0.0125, lip_col, rings=5, seg=9,
+                 scale=(1.45, 0.50, 0.55))
+        b.box(hp(0, -0.048, 0.086), (0.030, 0.0034, 0.010), (0.24, 0.12, 0.10),
+              yaw=math.atan2(fwd[0], fwd[2]))
+
+        # ears with lobes
+        for sd in (-1, 1):
+            b.sphere(hp(sd * 0.095, -0.008, 0.000), 0.027, skin, rings=6, seg=9,
+                     scale=(0.26, 0.95, 0.70))
+            b.sphere(hp(sd * 0.093, -0.026, 0.002), 0.011, skin, rings=4, seg=7,
+                     scale=(0.5, 0.8, 0.7))
+
+        # ---- hair: cap, hairline sweep, back mass, braid / beard ----
+        b.sphere(hp(0, 0.030, -0.020), 0.110, hair_col, rings=11, seg=15,
+                 scale=(1.00, 1.02, 1.00))
+        b.sphere(hp(0, -0.004, -0.066), 0.092, hair_col, rings=8, seg=12,
+                 scale=(1.0, 0.98, 0.72))
+        b.sphere(hp(0, 0.056, 0.052), 0.070, hair_col, rings=6, seg=12,
+                 scale=(1.32, 0.42, 0.62))
+        for sd in (-1, 1):
+            b.capsule(hp(sd * 0.070, 0.050, 0.034), hp(sd * 0.086, -0.010, 0.006),
+                      0.022, 0.015, hair_col, rings=4, seg=7)
+            b.capsule(hp(sd * 0.082, 0.000, 0.022), hp(sd * 0.086, -0.068, -0.014),
+                      0.021, 0.015, hair_col, rings=4, seg=7)
+        if kind == "woman":
+            b.capsule(hp(0, -0.052, -0.104), hp(0, -0.230, -0.108), 0.038, 0.019,
+                      hair_col, rings=5, seg=9)
+            b.sphere(hp(0, -0.242, -0.108), 0.022, hair_col, rings=4, seg=7)
+        elif kind == "elder":
+            b.capsule(hp(0, -0.060, -0.096), hp(0, -0.150, -0.104), 0.032, 0.019,
+                      hair_col, rings=4, seg=8)
+            for sd in (-1, 1):
+                b.capsule(hp(sd * 0.028, -0.086, 0.058), hp(sd * 0.018, -0.158, 0.066),
+                          0.024, 0.015, hair_col, rings=4, seg=7)
+            b.capsule(hp(-0.026, -0.050, 0.080), hp(0.026, -0.050, 0.080), 0.0070,
+                      0.0070, hair_col, rings=3, seg=6)
+        else:
+            b.capsule(hp(0, -0.052, -0.102), hp(0, -0.120, -0.100), 0.028, 0.015,
+                      hair_col, rings=4, seg=7)
+
+        # neck + trapezius blend
+        neck_top = world["neck"][:3, 3]
+        b.capsule(neck_top + np.array([0, 0.02, 0]), hp(0, -0.070, 0.006), 0.052, 0.048,
+                  skin, rings=4, seg=9)
+        for sd in (-1, 1):
+            b.sphere(hp(sd * 0.115, -0.190, 0.006), 0.062, skin, rings=5, seg=8,
+                     scale=(1.2, 0.7, 0.9))
+
         # ---- torso: one smooth hide tunic from thigh to collarbone ----
         chest = world["chest"][:3, 3]
         pelvis = world["pelvis"][:3, 3]

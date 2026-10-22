@@ -24,6 +24,8 @@ import random
 import numpy as np
 
 import photopeople as PP
+import actors
+import motion
 from mesh3d import (Builder, MAT_STONE, MAT_WOOD, MAT_LEAF, MAT_GROUND)
 from scenes3d import (add_terrain, add_mountains, add_treeline, add_tree,
                       height as height_at,
@@ -177,18 +179,52 @@ def shot_night(t: float, p: float) -> tuple[list, dict]:
     e = p * p * (3 - 2 * p)
     hx, hz = 0.72, 0.0
     hy = height(hx, hz)
-    cam_pos = (1.55 - 0.16 * e, hy + 1.22 - 0.05 * e, 3.55 - 0.45 * e)
-    aim = (-0.30, hy + 0.98, -0.55)
+    drift = (0.0035 * math.sin(t * 1.9 + 0.4), 0.0030 * math.sin(t * 2.6 + 1.1),
+             0.0026 * math.sin(t * 1.5 + 2.2))
+    cam_pos = (1.55 - 0.16 * e + drift[0], hy + 1.22 - 0.05 * e + drift[1],
+               3.55 - 0.45 * e + drift[2])
+    aim = (-0.30, hy + 0.98 + drift[1] * 0.5, -0.55)
     sway = math.sin(t * 0.9) * 0.045
     breathe = 1.0 + 0.006 * math.sin(t * 1.7)
     fyaw = PP.yaw_for((hx, hy, hz), cam_pos, aim=(-1.06, 0, -1.35), max_dev=0.22) + sway
-    head, feet = PP.add_person(b, "hunter_stand", (hx, hy, hz), yaw=fyaw,
-                               height=1.76 * breathe, gain=0.52)
+    # he is on watch, and the watch has a rhythm: a slow sweep of the tree line,
+    # then something moves out there and his head snaps to it and holds
+    # he walks in watching the tree line, plants, then something moves out
+    # there: the head snaps to it and holds (the "why" of the shot)
+    look = lambda tt: motion.curve(tt, [
+        (0.00, -0.10), (1.50, -0.12), (2.45, -0.04),
+        (2.85, -0.50), (3.05, -0.56), (4.35, -0.54),
+        (4.65, -0.22), (5.00, -0.10)], ease=True)
+    # ...then he takes one step: anticipation, push-off, a swinging foot that
+    # clears the ground, heel-strike, and the weight rolling over it. The
+    # plant is IK-locked, so his feet never skate.
+    idle = lambda tt: motion.watch(tt, h=1.76, look_fn=look, lag=0.13)  # noqa: E731
+    pose, travel = motion.step(t, 1.55, h=1.76, length=0.30, dwell=1.05, base=idle)
+    fwd0 = np.array([math.sin(fyaw), 0.0, math.cos(fyaw)])
+    side0 = np.array([fwd0[2], 0.0, -fwd0[0]])
+    # the snap has a body: he leans in and his shoulders come up a little
+    tense = motion.curve(t, [(0.0, 0.0), (2.86, 0.0), (3.02, 1.0),
+                             (3.60, 0.85), (4.40, 0.25), (5.0, 0.0)])
+    if tense > 0.01:
+        pose.add("spine", rx=0.045 * tense)
+        pose.add("chest", rx=0.030 * tense)
+        pose.add("neck", rx=-0.030 * tense)
+        pose.add("upperarm_r", rz=-0.030 * tense)
+        pose.add("upperarm_l", rz=0.030 * tense)
+        pose.root = pose.root + np.array([0.0, 0.0, 0.016 * tense])
+    hx0, hz0 = hx, hz
+    # he steps forward and a little toward the tree line he is watching, which
+    # also keeps him from crowding the right edge of the frame
+    hx = hx + float(fwd0[0] * 0.80 - side0[0] * 0.40) * travel
+    hz = hz + float(fwd0[2] * 0.80 - side0[2] * 0.40) * travel
+    anc = actors.add(b, "hunter_stand", (hx, hy, hz), fyaw, pose,
+                     bind="stand", height=1.76 * breathe, gain=0.52)
+    head, feet = anc["head"], anc["foot_r"]
     # (no breath vapour here: at this framing it reads as a blemish, not air)
     # the spear is planted on his far side so it never cuts across his face
     fwd = np.array([math.sin(fyaw), 0.0, math.cos(fyaw)])
     side = np.array([fwd[2], 0.0, -fwd[0]])
-    spear_base = np.array([hx, 0.0, hz]) - side * 0.42 - fwd * 0.10
+    spear_base = np.array([hx0, 0.0, hz0]) - side * 0.42 - fwd * 0.10
     sx, sz = float(spear_base[0]), float(spear_base[2])
     b.mat = MAT_WOOD
     b.capsule((sx, height(sx, sz) - 0.02, sz), (sx + 0.02, hy + 1.90, sz + 0.03),
@@ -214,7 +250,13 @@ def shot_night(t: float, p: float) -> tuple[list, dict]:
     # someone else is awake at the fire: the reason he is standing watch
     kx, kz = -1.30, -1.55
     kyaw = PP.yaw_for((kx, 0, kz), cam_pos, aim=(cfx, 0, cfz), max_dev=0.42)
-    PP.add_person(b, "woman_warm", (kx, height(kx, kz), kz), yaw=kyaw, gain=0.58)
+    # she glances up at him as he plants the step, then back to her hands
+    kwarm = motion.warm(t, h=1.68, seed=0.37,
+                        look_fn=lambda tt: motion.curve(tt, [(0.0, 0.0), (1.9, -0.02),
+                                                            (2.45, -0.40), (3.30, -0.36),
+                                                            (3.9, -0.04), (5.0, 0.0)]))
+    actors.add(b, "woman_warm", (kx, height(kx, kz), kz), kyaw, kwarm,
+               bind="warm", gain=0.58, contact_shadow=True)
     add_basket(b, (cfx - 0.86, height(cfx - 0.86, cfz + 0.30), cfz + 0.30), 0.95)
     add_berries(b, (cfx - 1.25, height(cfx - 1.25, cfz + 0.52), cfz + 0.52), 10, seed=12)
 
@@ -268,21 +310,45 @@ def shot_fire(t: float, p: float) -> tuple[list, dict]:
     # face-on to the lens while still leaning toward the fire
     ang = -0.20 + 0.26 * p
     rad = 5.65 - 0.32 * p
-    cam_pos = (math.sin(ang) * rad + 0.05, fy + 1.46 - 0.04 * p, math.cos(ang) * rad)
-    aim = (0.0, fy + 0.84, 0.10)
+    drift = (0.0030 * math.sin(t * 1.7 + 2.0), 0.0026 * math.sin(t * 2.3 + 0.6),
+             0.0028 * math.sin(t * 1.4 + 3.1))
+    cam_pos = (math.sin(ang) * rad + 0.05 + drift[0],
+               fy + 1.46 - 0.04 * p + drift[1], math.cos(ang) * rad + drift[2])
+    aim = (0.0, fy + 0.84 + drift[1] * 0.4, 0.10)
 
     # both figures stand a step back from the fire, flanking it, so the 9:16
     # frame holds the full bodies plus the flames between them
+    lt = t - 5.0
     wx, wz = -0.62, 0.92
     wy = PP.yaw_for((wx, 0, wz), cam_pos, aim=(fx, 0, fz), max_dev=0.34)
-    PP.add_person(b, "woman_stand", (wx, height(wx, wz), wz), yaw=wy, gain=0.62)
-    PP.add_card_shadow(b, "woman_stand", (wx, height(wx, wz), wz), wy, strength=0.5)
+    # she warms her hands, then looks across the flames at him and nods
+    wlook = lambda tt: motion.curve(tt, [(0.0, 0.0), (2.1, 0.02), (2.6, 0.30),
+                                        (3.15, 0.32), (3.8, 0.06), (5.0, 0.0)])
+    wpose = motion.warm(t, h=1.68, seed=0.61, look_fn=wlook)
+    # she leans in over the heat and pulls back from the smoke
+    lean = motion.curve(lt, [(0.0, 0.0), (1.1, 0.0), (2.4, 1.0), (3.6, 0.75), (5.0, 0.2)])
+    wpose.add("spine", rx=0.055 * lean)
+    wpose.add("chest", rx=0.030 * lean)
+    wpose.add("neck", rx=-0.045 * lean)
+    actors.add(b, "woman_warm", (wx, height(wx, wz), wz), wy, wpose,
+               bind="warm", gain=0.62)
 
     ex, ez = 0.66, 1.00
     ey = PP.yaw_for((ex, 0, ez), cam_pos, aim=(fx, 0, fz), max_dev=0.34)
-    PP.add_person(b, "elder_warm", (ex, height(ex, ez), ez), yaw=ey,
-                  height=1.66 + 0.008 * math.sin(t * 1.3), gain=0.62)
-    PP.add_card_shadow(b, "elder_warm", (ex, height(ex, ez), ez), ey, strength=0.5)
+    # he answers her: a slow turn of the head, a beat of listening, then back
+    elook = lambda tt: motion.curve(tt, [(0.0, 0.0), (1.2, 0.0), (1.7, -0.34),
+                                        (3.4, -0.36), (4.0, -0.10), (5.0, 0.0)])
+    epose = motion.warm(t, h=1.66 + 0.008 * math.sin(t * 1.3), seed=0.24,
+                        look_fn=elook)
+    # a spark pops and he pulls his head back for a beat (action -> reaction)
+    flinch = motion.curve(lt, [(0.0, 0.0), (2.55, 0.0), (2.72, 1.0),
+                               (2.95, 0.55), (3.30, 0.0)])
+    if flinch > 0.01:
+        epose.add("neck", rx=0.10 * flinch, ry=0.04 * flinch)
+        epose.add("head", rx=0.07 * flinch)
+        epose.add("chest", rx=0.04 * flinch)
+    actors.add(b, "elder_warm", (ex, height(ex, ez), ez), ey, epose,
+               bind="warm", gain=0.62)
 
     # a rack of tools behind them, and a basket, so the camp is a place
     b.mat = MAT_WOOD

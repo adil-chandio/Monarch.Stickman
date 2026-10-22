@@ -390,7 +390,10 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
                 float tu = A->uv[0] * b0 + B->uv[0] * b1 + C->uv[0] * b2;
                 float tv = A->uv[1] * b0 + B->uv[1] * b1 + C->uv[1] * b2;
                 sample_tex(tu, tv, tcol);
-                if (tcol[3] < 0.004f) continue;
+                /* A skinned card can stretch the faint outer ring of its
+                   matte into a visible ghost, so cut the ring off: below 0.34
+                   the pixel is treated as empty and never blends. */
+                if (tcol[3] < 0.34f) continue;
             }
             if (z >= zbuf[pi]) continue;
             if (tmat < 20 || tcol[3] > 0.55f) zbuf[pi] = z;
@@ -439,7 +442,8 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
                 float hemi = 0.5f + 0.5f * na[1];
                 float p1 = point_term(wp, na, env->light, env->light_range);
                 float p2 = point_term(wp, na, env->light2, env->light2_range);
-                float alpha = tcol[3] < 0.0f ? 0.0f : (tcol[3] > 1.0f ? 1.0f : tcol[3]);
+                float alpha = (tcol[3] - 0.34f) / 0.55f;
+                alpha = alpha < 0.0f ? 0.0f : (alpha > 1.0f ? 1.0f : alpha);
                 for (int k = 0; k < 3; ++k) {
                     float lit = tcol[k] * (env->ambient[k] * 1.35f * hemi
                                            + env->ground[k] * (1.0f - hemi) * 0.55f

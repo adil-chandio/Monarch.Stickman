@@ -11,7 +11,10 @@ photo/*.png                 AI-generated studio plates (full-body, plain sweep)
   -> tools/make_photo_cards.py     matte -> defringe -> crop -> atlas + manifest
   -> photo/people_atlas.png        one RGBA atlas
   -> photo/people.json             metres-per-card, atlas rects, uv bounds
-photopeople.py              card -> quad mesh (material 21) in a Builder
+photopeople.py              card manifest, atlas, contact shadows, facing maths
+rig.py                      13-bone skeleton + linear-blend skinning of the card
+motion.py                   gait / idle animation (IK legs, physical timing)
+actors.py                   place a skinned card with the pose its plate was shot in
 raster.c                    set_texture() + photo-card pixel path
 scenes_photo.py             the shots: who stands where, what the camera does
 render_10s.py               frame driver -> 1080x1920 -> ffmpeg
@@ -40,12 +43,46 @@ render_10s.py               frame driver -> 1080x1920 -> ffmpeg
    the lens, lean toward what the character is looking at (the fire, a
    companion), clamped to ±0.22–0.42 rad.
 
+## Movement: the cards have a skeleton
+
+A photo card used to be a rigid quad, so a standing figure could only breathe.
+Now each card is a **subdivided mesh (18×40 quads) bound to a 13-bone
+skeleton** — pelvis, spine, chest, neck, head, upper arm / forearm per side,
+thigh / shin / foot per side — with linear-blend skinning, four influences per
+vertex (`rig.py`). The vertices really move in world space, so the depth buffer,
+the sun shadow test, the fire's point light, fog and mist all follow the body.
+
+Three details make it read as weight rather than as wobble:
+
+* **Two-bone leg IK.** Every leg is solved from the *foot*: the stance ankle is
+  pinned to the ground and the hip height decides the knee bend. The sole is its
+  own bone, counter-rotated so it stays flat (heel-strike → flat → toe-off), and
+  the mesh is snapped so the lowest sole is exactly y = 0. Nothing skates.
+* **Plate-aware bind poses** (`actors.py`). Each card is bound to the pose it
+  was *photographed* in, and motion is applied as a delta from that. A plate
+  whose arms already reach forward is never rotated forward twice — that was
+  what turned an arm into a smear in the first test.
+* **Garment weights.** Leg weight is handed back to the pelvis as the tunic
+  rises (0.34–0.41 × height), so a stride swings the skirt as one piece instead
+  of tearing it at the crotch.
+
+`motion.py` then supplies the animation principles:
+
+| function | what it does |
+| --- | --- |
+| `walk` | 60 % stance gait: planted feet, pelvis bob twice per stride, hip/shoulder counter-rotation, arms opposite the legs with elbow lag, head held level |
+| `step` | one deliberate step: anticipation, push-off, foot arc, heel-strike, weight transfer onto the new front foot, settle |
+| `stand` | breathing, weight transfer foot to foot, micro-settle — knees bend because the hips move, not because a sine wave says so |
+| `watch` | a guard's scan: the head leads, the chest arrives ~0.11 s later, then it settles |
+| `warm` | hands to the fire: rub, heave toward the heat, lean in |
+| `curve` | scripted beats (a look, a flinch) as smooth time-keyed curves |
+
 ## Shots (first 10 s)
 
 | time | shot | what you see | why it reads |
 | --- | --- | --- | --- |
-| 0–5 s | `shot_night` | the hunter stands watch, spear planted, breath fogging; behind him the camp fire burns, a companion is awake, a bedroll lies in the grass | the subject is lit by the camp fire's warm rim against a cold moonlit world: *someone keeps watch* |
-| 5–10 s | `shot_fire` | the woman and the elder warm their hands at a fire whose two point lights flicker on them; slow orbit; sparks, fireflies | bodies, hands and faces are readable, and the light on them changes with the flames |
+| 0–5 s | `shot_night` | the hunter walks in watching the tree line, plants one deliberate step, holds — then his head snaps to something out there; behind him the camp fire burns, a companion looks up at him, a bedroll lies in the grass | the step shows real weight transfer, and the snap gives the shot its "why": *someone keeps watch* |
+| 5–10 s | `shot_fire` | the woman and the elder warm their hands at a fire whose two point lights flicker on them; she looks across the flames, he answers, a spark makes him flinch; slow orbit; sparks, fireflies | two people *reacting* to each other and to the fire, with the light moving over both |
 
 Fireflies, embers, smoke, grass, boulders, ridges and the pine treeline are all
 procedural geometry; the fire is fourteen lofted, tapering flame tongues.
@@ -54,6 +91,8 @@ procedural geometry; the fire is fourteen lofted, tapering flame tongues.
 
 ```bash
 python3 tools/make_photo_cards.py         # rebuild the atlas from photo/*.png
+python3 tools/fix_cards.py                # drop backdrop streaks the matte kept
+python3 tools/decontaminate.py            # bleed interior colour into the matte ring
 gcc -O2 -march=native -shared -fPIC -o libraster.so raster.c -lm
 python3 render_10s.py                    # whole clip -> _build/p10_*.mp4
 python3 render_10s.py --start 0 --end 120 --segment _build/a.mp4   # slice
@@ -69,6 +108,14 @@ Output: `video/Ancient_Survival_3D_10s_Photoreal.mp4` (1080×1920, 24 fps,
   that never happens.
 * Cards do not cast shadow-map shadows (a flat plane would cast a slab); they
   get a soft graded contact shadow instead, plus real point-light shading.
-* No walk cycle yet: a photoreal walking figure needs a matched AI plate per
-  pose. `photo/hunter_walk.png` exists and is already packed, so the walk shot
-  can be enabled later by placing cards per stride.
+* A rigged card can move its limbs, but it cannot reveal a side or back that was
+  never photographed: beyond ±20° from the lens the silhouette is still one
+  view. More plates per character are the next quality step.
+* `tools/decontaminate.py` bleeds interior colour through the half-transparent
+  matte ring. Without it every silhouette wore a pale halo (the studio sweep)
+  once the figure started to move and the edge stopped sitting on a dark edge.
+* `tools/fix_cards.py` removes a horizontal streak of studio backdrop that the
+  matte kept in `woman_warm` (a floor reflection, 3 px of grey). Flat on a
+  billboard it was invisible; skinned onto the legs it swung through the frame.
+* The card shader cuts alpha below 0.34 and ramps to 1.0 by 0.89. A skinned
+  card stretches its faintest edge texels, and those were blending as ghosts.

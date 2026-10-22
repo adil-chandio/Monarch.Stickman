@@ -53,9 +53,9 @@ def rig_for(name: str, bind: str = "stand") -> Rig:
 
 
 def add(b, name: str, pos, yaw: float, pose, bind: str = "stand",
-        height: float | None = None, gain: float = 0.92,
+        height: float | None = None, gain: float = 0.92, tint: float = 0.0,
         contact_shadow: bool = True, shadow_strength: float = 0.5) -> dict:
     """Emit one skinned figure; returns anchors (head, mouth, hands, feet)."""
     r = rig_for(name, bind)
-    return r.build(b, pos, yaw, pose, height=height, gain=gain,
+    return r.build(b, pos, yaw, pose, height=height, gain=gain, tint=tint,
                    contact_shadow=contact_shadow, shadow_strength=shadow_strength)

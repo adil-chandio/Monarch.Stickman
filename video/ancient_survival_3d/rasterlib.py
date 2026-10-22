@@ -63,6 +63,9 @@ class Raster:
         lib.set_texture.argtypes = [ctypes.POINTER(ctypes.c_uint8), ctypes.c_int,
                                     ctypes.c_int]
         lib.set_texture.restype = None
+        lib.set_texture2.argtypes = [ctypes.POINTER(ctypes.c_uint8), ctypes.c_int,
+                                     ctypes.c_int]
+        lib.set_texture2.restype = None
         self.lib = lib
         self._tex_ref = None
         self.w, self.h = width, height
@@ -76,6 +79,17 @@ class Raster:
         self.out = np.zeros(height * width * 3, np.uint8)
         self.depth = np.zeros(height * width, np.float32)
         self.normals = np.zeros(height * width * 3, np.float32)
+
+    def set_texture2(self, rgba: np.ndarray | None) -> None:
+        """Bind the unlit stage atlas (material 22 plates)."""
+        if rgba is None:
+            self._tex2 = None
+            self.lib.set_texture(None, 0, 0)
+            return
+        arr = np.ascontiguousarray(rgba, np.uint8)
+        self._tex2 = arr
+        self.lib.set_texture2(arr.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8)),
+                              arr.shape[1], arr.shape[0])
 
     def set_texture(self, rgba: np.ndarray | None) -> None:
         """Bind an HxWx4 uint8 atlas. Material ids >= 20 sample it as photo cards."""

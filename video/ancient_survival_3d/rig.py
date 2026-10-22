@@ -245,7 +245,7 @@ class Rig:
 
     # ---------------------------------------------------------------- build
     def build(self, b, pos, yaw: float, pose: Pose, height: float | None = None,
-              gain: float = 0.9, contact_shadow: bool = True,
+              gain: float = 0.9, tint: float = 0.0, contact_shadow: bool = True,
               shadow_strength: float = 0.5):
         """Emit the deformed card into `b`; returns world anchors."""
         verts, anchors = self.deform(pose)
@@ -287,7 +287,7 @@ class Rig:
             b.v.append(wp[i])
             b.n.append(vnormals[i])
             # the blue channel carries the card-local u for the body shading
-            b.c.append(np.array([gain, gain, float(self.gu[i])]))
+            b.c.append(np.array([gain, tint, float(self.gu[i])]))
             b.e.append(np.zeros(3))
             b.uv.append((float(u), float(v)))
             b.m.append(PP.MAT_CARD)

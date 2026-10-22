@@ -313,6 +313,53 @@ void set_texture(const uint8_t *rgba, int w, int h) {
 
 static inline int tex_ready(void) { return g_tex != NULL && g_tex_w > 0 && g_tex_h > 0; }
 
+/* ---- stage plates: a second RGBA texture for unlit matte paintings -------
+   Material 22 samples this atlas and writes its colour straight to the frame.
+   A plate is a *photograph* of the set: its light, haze and grade are baked,
+   so it must not be multiplied by the scene sun or it turns to mud. It still
+   writes depth, so 3D characters stand in front of / behind it correctly. */
+static const uint8_t *g_tex2 = NULL;
+static int g_tex2_w = 0, g_tex2_h = 0;
+
+void set_texture2(const uint8_t *rgba, int w, int h) {
+    g_tex2 = rgba;
+    g_tex2_w = w;
+    g_tex2_h = h;
+}
+
+static inline void sample_tex2(float u, float v, float *out) {
+    if (g_tex2 == NULL || g_tex2_w <= 0 || g_tex2_h <= 0) {
+        out[0] = out[1] = out[2] = 1.0f; out[3] = 1.0f; return;
+    }
+    if (u < 0.0f) u = 0.0f;
+    if (u > 0.999999f) u = 0.999999f;
+    if (v < 0.0f) v = 0.0f;
+    if (v > 0.999999f) v = 0.999999f;
+    float fx = u * (float)g_tex2_w - 0.5f, fy = v * (float)g_tex2_h - 0.5f;
+    int x0 = (int)floorf(fx), y0 = (int)floorf(fy);
+    float tx = fx - (float)x0, ty = fy - (float)y0;
+    int x1 = x0 + 1, y1 = y0 + 1;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > g_tex2_w - 1) x1 = g_tex2_w - 1;
+    if (y1 > g_tex2_h - 1) y1 = g_tex2_h - 1;
+    if (x0 > g_tex2_w - 1) x0 = g_tex2_w - 1;
+    if (y0 > g_tex2_h - 1) y0 = g_tex2_h - 1;
+    const uint8_t *p00 = g_tex2 + ((size_t)y0 * g_tex2_w + x0) * 4;
+    const uint8_t *p10 = g_tex2 + ((size_t)y0 * g_tex2_w + x1) * 4;
+    const uint8_t *p01 = g_tex2 + ((size_t)y1 * g_tex2_w + x0) * 4;
+    const uint8_t *p11 = g_tex2 + ((size_t)y1 * g_tex2_w + x1) * 4;
+    for (int k = 0; k < 4; ++k) {
+        float a = (float)p00[k] * (1 - tx) + (float)p10[k] * tx;
+        float b = (float)p01[k] * (1 - tx) + (float)p11[k] * tx;
+        out[k] = (a * (1 - ty) + b * ty) / 255.0f;
+    }
+    for (int k = 0; k < 3; ++k) {
+        float c = out[k];
+        out[k] = c <= 0.04045f ? c / 12.92f : powf((c + 0.055f) / 1.055f, 2.4f);
+    }
+}
+
 static inline void sample_tex(float u, float v, float *out) {
     if (!tex_ready()) { out[0] = out[1] = out[2] = 1.0f; out[3] = 1.0f; return; }
     if (u < 0.0f) u = 0.0f;
@@ -386,6 +433,44 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
             float b0 = w0 * invz[0] * z, b1 = w1 * invz[1] * z, b2 = w2 * invz[2] * z;
             int tmat = (int)(A->mat + 0.35f);
             float tcol[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+            if (tmat == 22) {
+                /* ---- unlit stage plate -------------------------------------
+                   A plate is a photograph of the set: its sun, haze and grade
+                   are already baked in, so multiplying it by this scene's
+                   light would turn it to mud. Copy the texel straight to the
+                   frame but keep writing depth, so 3D characters and props
+                   stand in front of / behind it with real occlusion. */
+                float tu = A->uv[0] * b0 + B->uv[0] * b1 + C->uv[0] * b2;
+                float tv = A->uv[1] * b0 + B->uv[1] * b1 + C->uv[1] * b2;
+                sample_tex2(tu, tv, tcol);
+                if (tcol[3] < 0.02f) continue;
+                if (z >= zbuf[pi]) continue;
+                float pa = tcol[3] > 1.0f ? 1.0f : tcol[3];
+                if (pa >= 0.999f) {
+                    zbuf[pi] = z;
+                    for (int k = 0; k < 3; ++k) lin[pi * 3 + k] = tcol[k];
+                } else {
+                    /* a soft element (contact shadow, haze) must not occlude
+                       what is behind it: blend, but leave the depth alone */
+                    for (int k = 0; k < 3; ++k) {
+                        lin[pi * 3 + k] = lin[pi * 3 + k] * (1.0f - pa) + tcol[k] * pa;
+                    }
+                }
+                continue;
+            }
+            if (tmat == 23) {
+                /* additive sprite: embers, the glow of the fire on the haze */
+                float tu = A->uv[0] * b0 + B->uv[0] * b1 + C->uv[0] * b2;
+                float tv = A->uv[1] * b0 + B->uv[1] * b1 + C->uv[1] * b2;
+                sample_tex2(tu, tv, tcol);
+                float pa = tcol[3] > 1.0f ? 1.0f : tcol[3];
+                if (pa < 0.004f) continue;
+                if (z >= zbuf[pi]) continue;
+                for (int k = 0; k < 3; ++k) {
+                    lin[pi * 3 + k] += tcol[k] * pa;
+                }
+                continue;
+            }
             if (tmat >= 20) {
                 float tu = A->uv[0] * b0 + B->uv[0] * b1 + C->uv[0] * b2;
                 float tv = A->uv[1] * b0 + B->uv[1] * b1 + C->uv[1] * b2;
@@ -444,6 +529,21 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
                 float p2 = point_term(wp, na, env->light2, env->light2_range);
                 float alpha = (tcol[3] - 0.34f) / 0.55f;
                 alpha = alpha < 0.0f ? 0.0f : (alpha > 1.0f ? 1.0f : alpha);
+                /* per-card exposure: plates are shot under studio light, so a
+                   night set needs them pulled down into its own exposure or
+                   they read as a cut-out pasted on the frame */
+                float cg = A->c[0] * b0 + B->c[0] * b1 + C->c[0] * b2;
+                if (!(cg > 0.02f)) cg = 0.02f;
+                if (cg > 4.0f) cg = 4.0f;
+                /* how far the card is pushed toward the set's own fill colour:
+                   a studio-lit plate carries a warm key that no amount of
+                   ambient can explain away, so the lit result is partially
+                   desaturated toward the scene fill (a colourist's "match the
+                   plate" move) before it is composited. */
+                float ct = A->c[1] * b0 + B->c[1] * b1 + C->c[1] * b2;
+                if (!(ct > 0.0f)) ct = 0.0f;
+                if (ct > 1.0f) ct = 1.0f;
+                float litv[3];
                 for (int k = 0; k < 3; ++k) {
                     float lit = tcol[k] * (env->ambient[k] * 1.35f * hemi
                                            + env->ground[k] * (1.0f - hemi) * 0.55f
@@ -457,13 +557,35 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
                         float fall = expf(-h / fmaxf(0.05f, env->mist_height));
                         float reach = 1.0f - expf(-z * 0.28f);
                         float m = env->mist_amount * fall * (0.30f + 0.70f * reach);
+                        /* a figure at the bottom of frame would otherwise be
+                           washed out by the ground mist the terrain wants:
+                           cards get a quarter of it, so they sit in the haze
+                           without losing their texture */
+                        m *= 0.24f;
                         lit = lit * (1.0f - m) + env->mist[k] * m;
                     }
-                    if (lit < 0.0f) lit = 0.0f;
+                    litv[k] = lit * cg;
+                    if (litv[k] < 0.0f) litv[k] = 0.0f;
+                }
+                if (ct > 0.002f) {
+                    float fl = 0.299f * env->ambient[0] + 0.587f * env->ambient[1]
+                             + 0.114f * env->ambient[2];
+                    if (fl < 1e-3f) fl = 1e-3f;
+                    float tn[3] = {env->ambient[0] / fl, env->ambient[1] / fl,
+                                   env->ambient[2] / fl};
+                    float tl = 0.299f * tn[0] + 0.587f * tn[1] + 0.114f * tn[2];
+                    if (tl < 1e-3f) tl = 1e-3f;
+                    float y = 0.299f * litv[0] + 0.587f * litv[1] + 0.114f * litv[2];
+                    for (int k = 0; k < 3; ++k) {
+                        float tgt = y * tn[k] / tl;
+                        litv[k] = litv[k] * (1.0f - ct) + tgt * ct;
+                    }
+                }
+                for (int k = 0; k < 3; ++k) {
                     if (alpha >= 0.999f) {
-                        lin[pi * 3 + k] = lit;
+                        lin[pi * 3 + k] = litv[k];
                     } else {
-                        lin[pi * 3 + k] = lin[pi * 3 + k] * (1.0f - alpha) + lit * alpha;
+                        lin[pi * 3 + k] = lin[pi * 3 + k] * (1.0f - alpha) + litv[k] * alpha;
                     }
                 }
                 continue;

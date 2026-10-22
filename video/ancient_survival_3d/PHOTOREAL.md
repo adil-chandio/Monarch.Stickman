@@ -1,4 +1,67 @@
-# Photoreal humans, true 3D scene
+# Photoreal pass v2 — AI plates as a real set
+
+The v1 pipeline lit a procedurally modelled world and hung photo cards in it.
+That world was the realism ceiling: low-poly ridges, plastic rocks and a smooth
+dune read as CG no matter how good the people were. The reference the user
+brought back is not realistic because of its polygons — it is realistic because
+every pixel of the frame looks photographic.
+
+So the set is now a **digital backlot**:
+
+| layer | what it is | material |
+|---|---|---|
+| back plate | photoreal AI forest at night (`plates/bg_night.png`) | 22, unlit |
+| mid plate | photoreal AI campfire clearing (`plates/mid_camp.png`) | 22, unlit |
+| contact shadow | soft radial alpha tile, flat on the floor | 22, alpha |
+| fire bloom | warm radial sprite at the fire | 23, additive |
+| people | skinned photo cards (unchanged pipeline) | 21 |
+| embers | emissive spheres on ballistic arcs | 0 |
+
+`stage.py` hangs a plate so it exactly fills the frame of the camera about to
+render it (`add_plate`), which is how a matte painting is used: the photograph
+supplies light, haze and detail; the card writes depth, so 3D characters and
+props in front of it occlude correctly.
+
+Material 22 samples a **second** RGBA atlas (`set_texture2`) and copies the
+texel straight to the frame — a plate is already shot, lit and graded, so
+multiplying it by the scene sun turns it to mud. Material 23 is the additive
+variant. Both are new in `raster.c`; both leave the depth buffer alone unless
+the texel is fully opaque.
+
+## Fitting the people to the plate
+
+A studio plate is much brighter and warmer than a night set, so three things
+had to change in the card shader:
+
+1. **per-card exposure** — the vertex colour's red channel is now read as a
+   gain (`gain=0.40` for the night, `0.34` for the fire).
+2. **per-card grade** — the green channel is a desaturation amount toward the
+   scene's own fill colour, so the plate's baked warm key is pulled into the
+   night's cool fill instead of glowing out of it.
+3. **mist attenuation** — ground mist is applied to cards at 0.24x, because at
+   full strength it turned the figures' legs into pale lavender cloth.
+
+## Motion
+
+`motion.step()` is wired into the night shot: anticipation, push-off, a
+swinging foot, heel-strike and the mass rolling onto the new stance, with both
+feet IK-locked so a planted foot never skates. The head scan leads the body;
+the body arrives a beat late (`lag`). The fire shot keeps `motion.warm()`
+shoulder-driven, because rotating forearms smears the clasped hands.
+
+## Shots (`scenes_stage.py`)
+
+| time | shot | content |
+|---|---|---|
+| 0.0–4.8 | `shot_watch` | hunter strides in, plants, snaps his head to a sound in the treeline, holds |
+| 4.8–10.0 | `shot_camp` | woman + elder at the fire: hands to the heat, an exchanged glance, a flinch at a spark |
+
+Render: `bash /tmp/render10.sh` (two halves in parallel, ~7 min), mux with
+`../ancient_survival/_build/final_mix.wav`.
+
+
+---
+
 
 The reel's cast is no longer procedural capsules. The people are
 **AI-generated photoreal studio plates** that are cut out, packed into an atlas

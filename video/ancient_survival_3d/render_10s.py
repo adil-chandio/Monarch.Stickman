@@ -19,9 +19,10 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 import photopeople as PP
+import stage as STAGE
 from rasterlib import Raster
 from scenes3d import apply_env
-from scenes_photo import SHOTS10
+from scenes_stage import SHOTS as SHOTS10
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
@@ -38,12 +39,10 @@ INK = (34, 29, 32)
 
 # Only the two photoreal shots, with captions that match what is on screen.
 CAPTIONS = [
-    (0.00, 1.70, "RAAT KA", "JUNGLE..."),
-    (1.70, 3.55, "NA PHONE.", "NA SAFE GHAR."),
-    (3.55, 5.00, "PEHRA", "SAB SE PEHLE"),
-    (5.00, 6.55, "AAG =", "PEHLA GHAR"),
-    (6.55, 8.25, "AAG SE", "GARMI"),
-    (8.25, 10.00, "PEHRA", "+ TEAMWORK"),
+    (0.00, 2.55, "RAAT KA", "JUNGLE..."),
+    (2.55, 4.80, "NA PHONE.", "NA SAFE GHAR."),
+    (4.80, 7.30, "AAG =", "PEHLA GHAR"),
+    (7.30, 10.00, "PEHRA", "+ TEAMWORK"),
 ]
 
 
@@ -84,6 +83,7 @@ class Reel:
     def __init__(self) -> None:
         self.r = Raster(RW, RH, fov=0.8)
         self.r.set_texture(PP.atlas())
+        self.r.set_texture2(STAGE.atlas())
         self.captions = []
         for _, _, first, second in CAPTIONS:
             self.captions.append({

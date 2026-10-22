@@ -29,6 +29,8 @@ typedef struct {
     const float *c;      /* V x 3 albedo (linear)      */
     const float *e;      /* V x 3 emission             */
     const int32_t *t;    /* T x 3 vertex indices       */
+    const float *uv;     /* V x 2 surface coords (m)   */
+    const float *m;      /* V material id              */
     int nv, nt;
 } Mesh;
 
@@ -63,6 +65,8 @@ typedef struct {
     float milky;            /* milky way strength                */
     float ao_strength;      /* 0..1                              */
     float bloom;            /* 0..1                              */
+    float dof_focus;        /* focus distance (world units)      */
+    float dof_amt;          /* 0 = off                           */
 } Env;
 
 static inline void vsub(const float *a, const float *b, float *o) {
@@ -230,8 +234,59 @@ static inline float aces(float x) {
     return y < 0.0f ? 0.0f : (y > 1.0f ? 1.0f : y);
 }
 
+/* ------------------------------------------------------- material shading
+ * Procedural, per-pixel surface detail. Everything is evaluated from the
+ * interpolated surface coords (in metres) and the shading normal, so the
+ * detail is baked into the surface rather than crawling with the camera.
+ */
+static inline float n3hash(int x, int y, int z) {
+    uint32_t h = hash32((uint32_t)(x * 374761393 + y * 668265263 + z * 2147483647));
+    return (h & 0xFFFFFF) / 16777215.0f;
+}
+
+static float noise3(float x, float y, float z) {
+    int xi = (int)floorf(x), yi = (int)floorf(y), zi = (int)floorf(z);
+    float xf = x - xi, yf = y - yi, zf = z - zi;
+    float u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
+    float c000 = n3hash(xi, yi, zi), c100 = n3hash(xi + 1, yi, zi);
+    float c010 = n3hash(xi, yi + 1, zi), c110 = n3hash(xi + 1, yi + 1, zi);
+    float c001 = n3hash(xi, yi, zi + 1), c101 = n3hash(xi + 1, yi, zi + 1);
+    float c011 = n3hash(xi, yi + 1, zi + 1), c111 = n3hash(xi + 1, yi + 1, zi + 1);
+    float x00 = c000 + (c100 - c000) * u, x10 = c010 + (c110 - c010) * u;
+    float x01 = c001 + (c101 - c001) * u, x11 = c011 + (c111 - c011) * u;
+    float y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;
+    return y0 + (y1 - y0) * w;
+}
+
+static float fbm3(float x, float y, float z, int oct) {
+    float sum = 0.0f, amp = 0.55f, f = 1.0f;
+    for (int i = 0; i < oct; ++i) {
+        sum += amp * noise3(x * f, y * f, z * f);
+        f *= 2.13f;
+        amp *= 0.5f;
+    }
+    return sum;
+}
+
+/* pore field: blobby pits around 0.4-1.2 mm across */
+static float pore_field(float u, float v, float seed) {
+    float base = fbm3(u * 260.0f + seed, v * 260.0f, seed * 3.1f, 3);
+    float fine = noise3(u * 900.0f + seed, v * 900.0f, seed);
+    return base * 0.70f + fine * 0.30f;
+}
+
+/* tangent frame from an arbitrary normal */
+static inline void tangent_frame(const float *n, float *t1, float *t2) {
+    float helper[3] = {0.0f, 1.0f, 0.0f};
+    if (fabsf(n[1]) > 0.9f) { helper[0] = 1.0f; helper[1] = 0.0f; }
+    vcross(n, helper, t1); vnorm(t1);
+    vcross(n, t1, t2); vnorm(t2);
+}
+
 typedef struct {
     float p[3], n[3], c[3], e[3];
+    float uv[2];
+    float mat;
     float cx, cy, cz;
 } Vtx;
 
@@ -285,24 +340,147 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
                 emi[k] = A->e[k] * b0 + B->e[k] * b1 + C->e[k] * b2;
             }
             vnorm(na);
+            float uv0 = A->uv[0] * b0 + B->uv[0] * b1 + C->uv[0] * b2;
+            float uv1 = A->uv[1] * b0 + B->uv[1] * b1 + C->uv[1] * b2;
+            int mat = (int)(A->mat + 0.35f);
+            float spec = 0.0f;          /* additive specular, filled below */
+            float fuzz = 0.0f;          /* forward-scatter rim            */
+            float relief[3] = {na[0], na[1], na[2]};
 
             float emissive = fabsf(emi[0]) + fabsf(emi[1]) + fabsf(emi[2]);
             float ndl = vdot(na, env->dir);
             float sh = 1.0f;
             if (emissive < 1e-4f) {
-                sh = shadow_factor(wp, 0.0022f);
-                sh = 1.0f - env->shadow_strength * (1.0f - sh);
+                /* grazing angles need a bigger bias, otherwise the map acne
+                   speckles exactly where the terminator sweeps the surface */
+                float bias = 0.0014f + 0.0130f * (1.0f - fmaxf(0.0f, ndl));
+                sh = shadow_factor(wp, bias);
+                float soft = smoothstepf(0.02f, 0.28f, ndl);
+                sh = 1.0f - env->shadow_strength * (1.0f - sh) * soft;
             }
             float diff = fmaxf(0.0f, ndl);
-            float band;
-            if (diff > 0.55f) band = 1.0f;
-            else if (diff > 0.20f) band = smoothstepf(0.20f, 0.55f, diff) * 0.30f + 0.70f;
-            else band = 0.44f + smoothstepf(0.0f, 0.20f, diff) * 0.20f;
+            /* banding is computed from the smooth normal; micro-relief from the
+               pore/noise shader must never be allowed to strobe the toon steps */
+            /* continuous, slightly wrapped diffuse: no visible toon steps */
+            float band = 0.28f + 0.72f * smoothstepf(0.0f, 0.78f, diff);
+            band = band * 0.55f + powf(fmaxf(0.0f, ndl), 0.85f) * 0.45f;
+            float ndl_r = vdot(relief, env->dir);
+            float drel = (ndl_r - ndl) * 1.7f;
+            if (drel > 0.20f) drel = 0.20f;
+            if (drel < -0.28f) drel = -0.28f;
+            band *= 1.0f + drel;
             float hemi = 0.5f + 0.5f * na[1];
             float viewv[3];
             vsub(campos, wp, viewv); vnorm(viewv);
             float fres = 1.0f - fmaxf(0.0f, vdot(na, viewv));
             float rim = powf(fres, 3.0f);
+
+            /* ---------------- procedural surface detail ---------------- */
+            /* detail LOD: micro texture fades with distance so it cannot alias */
+            float lod = 1.75f / (z + 1.2f);
+            if (lod > 1.0f) lod = 1.0f;
+            float ao_local = 1.0f;
+            if (emissive < 1e-4f && mat > 0) {
+                float t1[3], t2[3];
+                tangent_frame(na, t1, t2);
+                if (mat == 1) {
+                    /* ---- skin: pores, mottling, oil, subsurface ---- */
+                    float pf = pore_field(uv0, uv1, 3.7f);
+                    float pore = (pf - 0.5f) * 2.0f;   /* continuous, centred */
+                    float pf2 = pore_field(uv0 + 0.0011f, uv1, 3.7f);
+                    float pf3 = pore_field(uv0, uv1 + 0.0011f, 3.7f);
+                    float gx = (pf2 - pf) * 210.0f;
+                    float gy = (pf3 - pf) * 210.0f;
+                    float bump = 0.10f;
+                    float nn[3];
+                    for (int k = 0; k < 3; ++k)
+                        nn[k] = na[k] - t1[k] * gx * bump - t2[k] * gy * bump;
+                    vnorm(nn);
+                    /* keep the toon normal for banding, use the relief only for
+                       the specular highlight */
+                    for (int k = 0; k < 3; ++k) relief[k] = nn[k];
+                    /* blotchy melanin + capillary redness */
+                    float mott = fbm3(uv0 * 70.0f, uv1 * 70.0f, 1.3f, 3);
+                    float red = fbm3(uv0 * 16.0f + 5.0f, uv1 * 16.0f, 9.1f, 2);
+                    float tone = 1.0f + 0.085f * (mott - 0.4f) * lod;
+                    float pm = 1.0f + 0.135f * pore * lod;   /* pore relief shading */
+                    float dots = smoothstepf(0.66f, 0.80f, noise3(uv0 * 1250.0f, uv1 * 1250.0f, 17.0f));
+                    float dots2 = smoothstepf(0.68f, 0.84f, noise3(uv0 * 2100.0f + 3.0f, uv1 * 2100.0f, 29.0f));
+                    pm *= 1.0f - (0.10f * dots + 0.06f * dots2) * lod;
+                    col[0] *= tone * pm * (0.975f + 0.055f * red * lod);
+                    col[1] *= tone * pm * (0.992f + 0.018f * red * lod);
+                    col[2] *= tone * pm * (1.000f - 0.030f * red * lod);
+                    ao_local = 1.0f - 0.10f * pore * lod;
+                    ao_local *= 0.985f + 0.03f * (fbm3(uv0 * 90.0f, uv1 * 90.0f, 2.0f, 2) - 0.5f) * lod;
+                    (void)pore;
+                    diff = (diff + 0.34f) / 1.34f;         /* wrap lighting */
+                    if (diff > 0.98f) diff = 0.98f;
+                    float ndv = fmaxf(0.0f, vdot(na, viewv));
+                    spec = 0.30f * powf(1.0f - ndv, 4.0f);
+                    fuzz = 0.10f;
+                } else if (mat == 2) {
+                    /* ---- hide tunic: woven threads + felt fuzz ---- */
+                    float wx = sinf(uv0 * 2400.0f) * 0.5f + 0.5f;
+                    float wy = sinf(uv1 * 2400.0f) * 0.5f + 0.5f;
+                    float weave = wx * 0.5f + wy * 0.5f;
+                    float grain = fbm3(uv0 * 900.0f, uv1 * 900.0f, 4.4f, 2);
+                    float k = 0.955f + 0.035f * weave * lod + 0.045f * grain * lod;
+                    float patchy = fbm3(uv0 * 18.0f, uv1 * 18.0f, 7.7f, 3);
+                    float stain = smoothstepf(0.55f, 0.85f, fbm3(uv0 * 6.0f, uv1 * 6.0f, 2.2f, 3));
+                    for (int q = 0; q < 3; ++q) col[q] *= k * (0.86f + 0.22f * patchy);
+                    col[0] *= 1.0f - 0.10f * stain;
+                    col[1] *= 1.0f - 0.13f * stain;
+                    col[2] *= 1.0f - 0.16f * stain;
+                    ao_local = 0.93f + 0.10f * weave;
+                    fuzz = 0.16f;
+                } else if (mat == 3) {
+                    /* ---- hair: strands running along the scalp ---- */
+                    float strand = noise3(uv0 * 900.0f, uv1 * 120.0f, 2.2f);
+                    float strand2 = noise3(uv0 * 2200.0f, uv1 * 260.0f, 5.5f);
+                    float k = 0.72f + 0.55f * strand * strand2 * 2.0f;
+                    for (int q = 0; q < 3; ++q) col[q] *= k;
+                    spec = 0.22f * powf(1.0f - fmaxf(0.0f, vdot(na, viewv)), 2.0f);
+                    fuzz = 0.22f;
+                } else if (mat == 4) {
+                    /* ---- stone: grain, lichen, pits ---- */
+                    float g = fbm3(uv0 * 40.0f, uv1 * 40.0f, 1.7f, 3);
+                    float fine = noise3(uv0 * 340.0f, uv1 * 340.0f, 8.8f);
+                    float lichen = smoothstepf(0.62f, 0.80f, fbm3(uv0 * 9.0f, uv1 * 9.0f, 3.3f, 3));
+                    float k = 0.90f + 0.18f * g + 0.07f * fine * lod;
+                    for (int q = 0; q < 3; ++q) col[q] *= k;
+                    col[1] += 0.055f * lichen;
+                    col[0] *= 1.0f - 0.22f * lichen;
+                    ao_local = 0.90f + 0.14f * fine;
+                } else if (mat == 5) {
+                    /* ---- foliage: leaf clumps, translucent edge ---- */
+                    float leaf = noise3(uv0 * 260.0f, uv1 * 260.0f, 2.9f);
+                    float clump = fbm3(uv0 * 26.0f, uv1 * 26.0f, 6.1f, 3);
+                    float k = 0.84f + 0.26f * leaf * lod + 0.16f * clump;
+                    for (int q = 0; q < 3; ++q) col[q] *= k;
+                    fuzz = 0.30f;
+                    ao_local = 0.88f + 0.16f * clump;
+                } else if (mat == 6) {
+                    /* ---- eyes: wet cornea ---- */
+                    spec = 0.85f * powf(1.0f - fmaxf(0.0f, vdot(na, viewv)), 1.6f);
+                } else if (mat == 7) {
+                    /* ---- wood: bark ridges ---- */
+                    float bark = noise3(uv0 * 120.0f, uv1 * 900.0f, 4.1f);
+                    float k = 0.80f + 0.40f * bark;
+                    for (int q = 0; q < 3; ++q) col[q] *= k;
+                    ao_local = 0.86f + 0.20f * bark;
+                } else if (mat == 8) {
+                    /* ---- ground: soil grain, pebbles, dry grass ---- */
+                    float g = fbm3(uv0 * 7.0f, uv1 * 7.0f, 2.6f, 4);
+                    float peb = smoothstepf(0.68f, 0.86f, noise3(uv0 * 34.0f, uv1 * 34.0f, 1.1f));
+                    float fine = noise3(uv0 * 220.0f, uv1 * 220.0f, 3.9f);
+                    float k = 0.90f + 0.15f * g + 0.07f * fine * lod;
+                    for (int q = 0; q < 3; ++q) col[q] *= k;
+                    col[0] += 0.05f * peb;
+                    col[1] += 0.04f * peb;
+                    col[2] += 0.03f * peb;
+                    ao_local = 0.90f + 0.12f * fine;
+                }
+            }
 
             float p1 = 0.0f, p2 = 0.0f;
             if (emissive < 1e-4f) {
@@ -314,13 +492,22 @@ static void raster_tri(const Vtx *A, const Vtx *B, const Vtx *C, const Camera *c
                 normal_out[pi * 3 + 1] = na[1];
                 normal_out[pi * 3 + 2] = na[2];
             }
+            float half_v[3] = {env->dir[0] + viewv[0], env->dir[1] + viewv[1],
+                               env->dir[2] + viewv[2]};
+            vnorm(half_v);
+            float ndh = fmaxf(0.0f, vdot(relief, half_v));
+            float spec_term = spec * powf(ndh, 46.0f);
+            float spec2 = spec * powf(ndh, 420.0f) * 2.2f;
             for (int k = 0; k < 3; ++k) {
-                float lit = col[k] * (env->colour[k] * band * 0.88f * sh +
+                float lit = col[k] * ao_local * (env->colour[k] * band * 0.88f * sh +
                                       env->ambient[k] * hemi * 0.52f +
                                       env->ground[k] * (1.0f - hemi) * 0.36f +
                                       env->colour[k] * rim * 0.20f * sh);
                 lit += col[k] * env->light_colour[k] * p1 * 2.4f;
                 lit += col[k] * env->light2_colour[k] * p2 * 2.0f;
+                lit += (spec_term + spec2) * (env->colour[k] * sh + env->light_colour[k] * p1);
+                lit += col[k] * fuzz * rim * (env->colour[k] * 0.35f * sh +
+                                              env->light_colour[k] * p1 * 0.9f);
                 lit += emi[k] * 1.75f;
                 float fog = 1.0f - expf(-env->fog_density * z * z);
                 lit = lit * (1.0f - fog) + env->fog[k] * fog;
@@ -374,6 +561,9 @@ void render(const Mesh *meshes, int nmesh, const Camera *cam, const Env *env,
                     tri[k].c[a] = mesh->c[vi * 3 + a];
                     tri[k].e[a] = mesh->e[vi * 3 + a];
                 }
+                tri[k].uv[0] = mesh->uv ? mesh->uv[vi * 2 + 0] : 0.0f;
+                tri[k].uv[1] = mesh->uv ? mesh->uv[vi * 2 + 1] : 0.0f;
+                tri[k].mat = mesh->m ? mesh->m[vi] : 0.0f;
                 float d[3];
                 vsub(tri[k].p, cam->pos, d);
                 tri[k].cz = vdot(d, fwd);
@@ -396,6 +586,9 @@ void render(const Mesh *meshes, int nmesh, const Camera *cam, const Env *env,
                         o.c[q] = a->c[q] + (b->c[q] - a->c[q]) * t;
                         o.e[q] = a->e[q] + (b->e[q] - a->e[q]) * t;
                     }
+                    for (int q = 0; q < 2; ++q)
+                        o.uv[q] = a->uv[q] + (b->uv[q] - a->uv[q]) * t;
+                    o.mat = a->mat;
                     o.cx = a->cx + (b->cx - a->cx) * t;
                     o.cy = a->cy + (b->cy - a->cy) * t;
                     o.cz = cam->nearz;
@@ -624,6 +817,12 @@ void render(const Mesh *meshes, int nmesh, const Camera *cam, const Env *env,
             for (int k = 0; k < 3; ++k) {
                 float t = luma + (tm[k] - luma) * 1.16f;
                 t += (k == 2 ? 0.016f : (k == 0 ? 0.020f : 0.0f)) * (1.0f - t) * t * 3.0f;
+                /* filmic S-curve: deeper shadows, cleaner highlights */
+                t = (t - 0.5f) * 1.10f + 0.5f;
+                if (t < 0.0f) t = 0.0f;
+                if (t > 1.0f) t = 1.0f;
+                t = t * t * (3.0f - 2.0f * t) * 0.45f + t * 0.55f;
+                t += 0.012f * (1.0f - t) * (k == 2 ? 1.2f : 1.0f);
                 float v = t * vig + grain;
                 int iv = (int)(v * 255.0f + 0.5f);
                 if (iv < 0) iv = 0;
@@ -632,5 +831,45 @@ void render(const Mesh *meshes, int nmesh, const Camera *cam, const Env *env,
             }
         }
     }
+    /* ------------------------------------------------- depth of field */
+    if (env->dof_amt > 0.001f) {
+        uint8_t *copy = (uint8_t *)malloc(NP * 3);
+        memcpy(copy, out, NP * 3);
+        const float focus = env->dof_focus > 0.01f ? env->dof_focus : 4.0f;
+        for (int y = 0; y < H; ++y) {
+            for (int x = 0; x < W; ++x) {
+                size_t pi = (size_t)y * W + x;
+                float z = zbuf[pi];
+                if (z > 1e28f) z = 60.0f;
+                float coc = env->dof_amt * fabsf(z - focus) / fmaxf(z, 0.5f);
+                if (coc > 1.0f) coc = 1.0f;
+                if (coc < 0.06f) continue;
+                float radius = coc * 9.0f;
+                int ri = (int)radius;
+                float acc[3] = {0, 0, 0};
+                float wsum = 0.0f;
+                for (int s = 0; s < 7; ++s) {
+                    float ang = (float)s * 2.39996323f;
+                    float rr = radius * (0.35f + 0.65f * ((float)((s * 29) % 11) / 11.0f));
+                    int sx2 = x + (int)(cosf(ang) * rr);
+                    int sy2 = y + (int)(sinf(ang) * rr);
+                    if (sx2 < 0 || sy2 < 0 || sx2 >= W || sy2 >= H) continue;
+                    size_t pj = (size_t)sy2 * W + sx2;
+                    for (int k = 0; k < 3; ++k) acc[k] += copy[pj * 3 + k];
+                    wsum += 1.0f;
+                }
+                if (wsum < 1.0f) continue;
+                float mixAmt = fminf(1.0f, coc * 1.4f);
+                for (int k = 0; k < 3; ++k) {
+                    float blurred = acc[k] / wsum;
+                    out[pi * 3 + k] = (uint8_t)(copy[pi * 3 + k] * (1.0f - mixAmt) +
+                                                blurred * mixAmt + 0.5f);
+                }
+                (void)ri;
+            }
+        }
+        free(copy);
+    }
+
     free(zbuf); free(lin); free(glow);
 }

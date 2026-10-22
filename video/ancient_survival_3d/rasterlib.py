@@ -15,7 +15,9 @@ LIB_PATH = HERE / "libraster.so"
 class _Mesh(ctypes.Structure):
     _fields_ = [("v", ctypes.POINTER(ctypes.c_float)), ("n", ctypes.POINTER(ctypes.c_float)),
                 ("c", ctypes.POINTER(ctypes.c_float)), ("e", ctypes.POINTER(ctypes.c_float)),
-                ("t", ctypes.POINTER(ctypes.c_int32)), ("nv", ctypes.c_int), ("nt", ctypes.c_int)]
+                ("t", ctypes.POINTER(ctypes.c_int32)),
+                ("uv", ctypes.POINTER(ctypes.c_float)), ("m", ctypes.POINTER(ctypes.c_float)),
+                ("nv", ctypes.c_int), ("nt", ctypes.c_int)]
 
 
 class _Camera(ctypes.Structure):
@@ -37,7 +39,8 @@ class _Env(ctypes.Structure):
                 ("light2_range", ctypes.c_float),
                 ("sky_hor", ctypes.c_float * 3), ("sky_top", ctypes.c_float * 3),
                 ("cloud", ctypes.c_float), ("milky", ctypes.c_float),
-                ("ao_strength", ctypes.c_float), ("bloom", ctypes.c_float)]
+                ("ao_strength", ctypes.c_float), ("bloom", ctypes.c_float),
+                ("dof_focus", ctypes.c_float), ("dof_amt", ctypes.c_float)]
 
 
 def ensure_library(rebuild: bool = False) -> Path:
@@ -79,7 +82,8 @@ class Raster:
                     exposure=1.0, night=0, moon=(0, 0, 0), shadow=0.75,
                     light=None, light_colour=(0, 0, 0), light_range=4.0,
                     light2=None, light2_colour=(0, 0, 0), light2_range=3.0,
-                    sky=None, cloud=0.0, milky=0.0, ao=0.62, bloom=0.55) -> None:
+                    sky=None, cloud=0.0, milky=0.0, ao=0.62, bloom=0.55,
+                    dof_focus=0.0, dof=0.0) -> None:
         self.env.dir = tuple(float(v) for v in sun_dir)
         self.env.colour = tuple(float(v) for v in sun_colour)
         self.env.ambient = tuple(float(v) for v in ambient)
@@ -103,24 +107,33 @@ class Raster:
         self.env.milky = float(milky)
         self.env.ao_strength = float(ao)
         self.env.bloom = float(bloom)
+        self.env.dof_focus = float(dof_focus)
+        self.env.dof_amt = float(dof)
 
     def render(self, meshes) -> np.ndarray:
         keep = []
         structs = (_Mesh * len(meshes))()
-        for i, (v, n, c, e, t) in enumerate(meshes):
+        for i, mesh in enumerate(meshes):
+            v, n, c, e, t = mesh[:5]
             if len(t) == 0:
                 continue
+            uv = mesh[5] if len(mesh) > 5 else np.zeros((len(v), 2), np.float32)
+            mm = mesh[6] if len(mesh) > 6 else np.zeros((len(v),), np.float32)
             v = np.ascontiguousarray(v, np.float32)
             n = np.ascontiguousarray(n, np.float32)
             c = np.ascontiguousarray(c, np.float32)
             e = np.ascontiguousarray(e, np.float32)
             t = np.ascontiguousarray(t, np.int32)
-            keep.append((v, n, c, e, t))
+            uv = np.ascontiguousarray(uv, np.float32)
+            mm = np.ascontiguousarray(mm, np.float32)
+            keep.append((v, n, c, e, t, uv, mm))
             structs[i] = _Mesh(v.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
                                n.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
                                c.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
                                e.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
                                t.ctypes.data_as(ctypes.POINTER(ctypes.c_int32)),
+                               uv.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+                               mm.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
                                len(v), len(t))
         self.lib.render(structs, len(keep), ctypes.byref(self.cam), ctypes.byref(self.env),
                         self.out.ctypes.data_as(ctypes.POINTER(ctypes.c_uint8)),

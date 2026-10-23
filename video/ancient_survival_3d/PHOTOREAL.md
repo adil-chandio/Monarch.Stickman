@@ -1,66 +1,35 @@
-# Photoreal pass v2 — AI plates as a real set
+# Photoreal pass v3 — the frame itself is AI photography
 
-The v1 pipeline lit a procedurally modelled world and hung photo cards in it.
-That world was the realism ceiling: low-poly ridges, plastic rocks and a smooth
-dune read as CG no matter how good the people were. The reference the user
-brought back is not realistic because of its polygons — it is realistic because
-every pixel of the frame looks photographic.
+The user's bar: *the whole video has to look photoreal, however it is done —
+buy it from AI if needed*, and the reference is a pre-viz reel whose second
+half is a photoreal AI video model.
 
-So the set is now a **digital backlot**:
+Honest constraint check first: this sandbox has **no GPU** (2 vCPU, 3 GB RAM),
+so a local video-diffusion model (AnimateDiff / Wan / CogVideoX / SVD) cannot
+run — not slowly, at all. What *can* run is the same idea at the keyframe
+level, which is what the reference actually looks like:
 
-| layer | what it is | material |
-|---|---|---|
-| back plate | photoreal AI forest at night (`plates/bg_night.png`) | 22, unlit |
-| mid plate | photoreal AI campfire clearing (`plates/mid_camp.png`) | 22, unlit |
-| contact shadow | soft radial alpha tile, flat on the floor | 22, alpha |
-| fire bloom | warm radial sprite at the fire | 23, additive |
-| people | skinned photo cards (unchanged pipeline) | 21 |
-| embers | emissive spheres on ballistic arcs | 0 |
+| layer | how it is made |
+|---|---|
+| every pixel of the frame | a photoreal AI still (`frames/A1..B4.jpg`), generated as chained edits of one master so face, costume, fire, stone ring and grade stay locked |
+| shot structure | 6 hard cuts over 10 s (1.4–2.1 s each), cut on action, like the reference's edit |
+| camera | a dolly per shot: LANCZOS resample + sub-pixel sine drift, plus a two-layer parallax (near ground slides against far trees) |
+| fire | flicker modulated only on the warm, non-flame region; heat shimmer field over the flames; ballistic ember particles |
+| people | two radial "breathe" warps (chest expansion) so a plate is never frozen |
+| atmosphere | drifting ground-mist band, film grade (lifted toes, rolled highlights, cool shadows / warm highs), vignette, grain |
 
-`stage.py` hangs a plate so it exactly fills the frame of the camera about to
-render it (`add_plate`), which is how a matte painting is used: the photograph
-supplies light, haze and detail; the card writes depth, so 3D characters and
-props in front of it occlude correctly.
+The whole frame — people, fire, trees, ground, sky — is AI photography; no
+polygons are rendered in this cut at all.
 
-Material 22 samples a **second** RGBA atlas (`set_texture2`) and copies the
-texel straight to the frame — a plate is already shot, lit and graded, so
-multiplying it by the scene sun turns it to mud. Material 23 is the additive
-variant. Both are new in `raster.c`; both leave the depth buffer alone unless
-the texel is fully opaque.
+    python3 animate.py --start 0 --end 120 --segment _build/a.mp4     # then 120..240, concat
+    bash /tmp/render_anim.sh                                         # both halves, ~2.5 min
 
-## Fitting the people to the plate
+Keyframes are chained reference edits: A1 → A2 → A3 (the watch and the walk),
+B1 → B2 → B3/B4 (the fire). Rendered 1080x1920 @ 24 fps from 810x1440 working
+res, unsharp + grain at output size.
 
-A studio plate is much brighter and warmer than a night set, so three things
-had to change in the card shader:
-
-1. **per-card exposure** — the vertex colour's red channel is now read as a
-   gain (`gain=0.40` for the night, `0.34` for the fire).
-2. **per-card grade** — the green channel is a desaturation amount toward the
-   scene's own fill colour, so the plate's baked warm key is pulled into the
-   night's cool fill instead of glowing out of it.
-3. **mist attenuation** — ground mist is applied to cards at 0.24x, because at
-   full strength it turned the figures' legs into pale lavender cloth.
-
-## Motion
-
-`motion.step()` is wired into the night shot: anticipation, push-off, a
-swinging foot, heel-strike and the mass rolling onto the new stance, with both
-feet IK-locked so a planted foot never skates. The head scan leads the body;
-the body arrives a beat late (`lag`). The fire shot keeps `motion.warm()`
-shoulder-driven, because rotating forearms smears the clasped hands.
-
-## Shots (`scenes_stage.py`)
-
-| time | shot | content |
-|---|---|---|
-| 0.0–4.8 | `shot_watch` | hunter strides in, plants, snaps his head to a sound in the treeline, holds |
-| 4.8–10.0 | `shot_camp` | woman + elder at the fire: hands to the heat, an exchanged glance, a flinch at a spark |
-
-Render: `bash /tmp/render10.sh` (two halves in parallel, ~7 min), mux with
-`../ancient_survival/_build/final_mix.wav`.
-
-
----
+The v2 pipeline (3D rasteriser, stage plates, skinned photo people) is still in
+the tree and still works — `render_10s.py` — but this cut does not use it.
 
 
 The reel's cast is no longer procedural capsules. The people are

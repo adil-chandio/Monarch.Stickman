@@ -14,7 +14,7 @@ import numpy as np
 from scipy import signal
 import soundfile as sf
 
-from timeline_v3 import BEATS, TOTAL
+from timeline_v4 import BEATS, TOTAL
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
@@ -215,7 +215,7 @@ class Reverb:
         return np.stack([signal.fftconvolve(x[:, c], self.ir, mode="same") for c in range(x.shape[1])],
                         axis=1).astype(np.float32)
 
-VERB = Reverb(2.4, 2.9, 0.018, 5600, 11)
+VERB = Reverb(1.6, 3.8, 0.014, 5200, 11)
 PLATE = Reverb(1.5, 4.2, 0.008, 8200, 23)
 
 def tape(x, drive=1.25, hiss=0.0012, wow=0.00018):
@@ -367,7 +367,7 @@ def build_music(total):
     music = hp(music, 34)
     music = tape(music, 1.05, 0.0007)
     wet = VERB(music)
-    music = (music * .80 + wet * .26).astype(np.float32)
+    music = (music * .94 + wet * .06).astype(np.float32)
     # gentle tonal shaping for phone speakers
     music = music + hp(music, 1800) * .55 + hp(music, 3600) * .75 - lp(music, 95) * .30
     music = widen(music, .26)
@@ -543,7 +543,7 @@ def build_sfx(total):
     hit("whoosh", b10["start"] + 3.0, .16, .2)
 
     wet = VERB(buf)
-    buf = (buf * .85 + wet * .20).astype(np.float32)
+    buf = (buf * .96 + wet * .04).astype(np.float32)
     return widen(buf, .22)
 
 
@@ -601,8 +601,9 @@ def build_voice(total):
             mono = clip.mean(axis=1)
         # EQ: remove rumble, add presence
         m = hp(mono, 88)
-        pres = bp(m, 2200, 4800) * 0.34
-        air = hp(m, 8000) * 0.18
+        m = m - bp(m, 170, 430) * 0.32
+        pres = bp(m, 2200, 5200) * 0.46
+        air = hp(m, 8200) * 0.16
         m = m + pres + air
         m = lp(m, 16000)
         clip = np.stack([m, m], axis=1)
@@ -624,7 +625,7 @@ def build_voice(total):
         v = v / pk * 0.89
     v = compress(v, -14, 2.2, .004, .16, 1.0)
     pk = np.abs(v).max()
-    v = v / max(pk, 1e-9) * 0.89
+    v = v / max(pk, 1e-9) * 0.91
     return v, env_for_duck
 
 
@@ -664,10 +665,10 @@ def build():
     music = music / max(np.abs(music).max(), 1e-9)
     music = music * (10 ** ((vr - 11.5) / 20) / max(rms_db(music), -90) if False else 1.0)
     m_r = rms_db(music)
-    music = music * 10 ** ((vr - 7.0 - m_r) / 20)
+    music = music * 10 ** ((vr - 10.0 - m_r) / 20)
 
     # sfx: accents peak just under the voice, never over it
-    sfx = sfx / max(np.abs(sfx).max(), 1e-9) * 10 ** (-5.5 / 20)
+    sfx = sfx / max(np.abs(sfx).max(), 1e-9) * 10 ** (-7.5 / 20)
 
     # duck
     d = smooth(venv[:n], 260)

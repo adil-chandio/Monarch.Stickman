@@ -1,5 +1,15 @@
 # Law 1 — "Never Outshine the Master" · v3 (cinematic, no-brand build)
 
+> **v4 (current build — `Law1_v4_CINEMATIC_9x16_FLOW.mp4`, 63.33 s)**
+> - **Voice flow fixed:** `tighten.py` trims every clip to speech, squeezes internal
+>   pauses > 0.34 s down to 0.18 s and regenerates `timeline_v4.py` with real
+>   durations + sentence-accurate cue times. Dead air between lines: 72.6 s → 63.3 s.
+> - **Echo removed everywhere:** music reverb 26 % → 6 % (shorter IR), SFX reverb
+>   20 % → 4 %, voice 100 % dry. Nothing in the mix has a tail longer than ~1.6 s.
+> - **Voice sits on top:** 170–430 Hz mud cut, +46 % presence at 2.2–5.2 kHz,
+>   music 10 dB under the voice before ducking (12.9 dB in the 300–3k band after),
+>   SFX peaks −7.5 dB. Master −14.4 LUFS / −1.0 dBTP.
+
 72.57 s · 1080×1920 · 30 fps · H.264 CRF 18 + AAC 256 k · −13.6 LUFS / −2.5 dBTP
 
 ## What changed from v2

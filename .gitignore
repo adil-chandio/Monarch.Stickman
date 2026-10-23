@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+video_law1/out/video_silent.mp4
+video_law1/out/mix.wav
+video_law1/out/still_*.png
+video_law1/out/qa/

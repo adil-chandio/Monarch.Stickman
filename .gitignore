@@ -10,3 +10,16 @@ video_law1/v2out/still_*.png
 video_law1/v2out/qa/
 video_law1/v2out/render*.log
 video_law1/v2out/*.wav
+
+# v3 build artifacts (code + final mp4 are versioned; the rest is regenerable)
+video_law1/v3out/video_v3_silent.mp4
+video_law1/v3out/mix_v3.wav
+video_law1/v3out/stem_*.wav
+video_law1/v3out/still_*.png
+video_law1/v3out/qa_sheet*.jpg
+video_law1/v3out/spec_mix.png
+video_law1/v3out/render.log
+video_law1/google_drive/
+google_drive/
+video_law1/assets_src/
+video_law1/audio_v3/sfx_raw/

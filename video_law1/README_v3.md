@@ -22,7 +22,8 @@
   a slam on the jail, sparse ticks in the quote, one big hit on the end card —
   and *nothing* during the lines that need the voice alone.
 - Voice chain: HPF 88 Hz → presence 2.2–4.8 k (+34 %) → air 8 k (+18 %) →
-  de-esser → compressor.
+  de-esser → compressor. **The voice is 100 % dry** — the short plate reverb that
+  v3.0 put on every beat read as an echo/slapback on phone speakers, so it was removed.
 - Ducking: music −52 %, SFX −30 % under the voice; voice peak −1.5 dBFS,
   music ≈ 9.5 dB under the voice before ducking, SFX peaks ≈ 4 dB under the voice.
 - Master: tape saturation → glue compression → soft limiter → −13.6 LUFS, −2.5 dBTP.

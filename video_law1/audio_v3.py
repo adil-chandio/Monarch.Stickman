@@ -543,7 +543,7 @@ def build_sfx(total):
     hit("whoosh", b10["start"] + 3.0, .16, .2)
 
     wet = VERB(buf)
-    buf = (buf * .8 + wet * .28).astype(np.float32)
+    buf = (buf * .85 + wet * .20).astype(np.float32)
     return widen(buf, .22)
 
 
@@ -608,8 +608,7 @@ def build_voice(total):
         clip = np.stack([m, m], axis=1)
         clip = deess(clip, .5)
         clip = compress(clip, -18, 3.0, .005, .18, 1.5)
-        # tiny room for gloss
-        clip = clip * .95 + PLATE(clip) * .06
+        # voice stays 100% dry - no plate, no slap, nothing that reads as echo
         f = T(.012)
         if len(clip) > 2 * f:
             clip[:f] *= np.linspace(0, 1, f)[:, None].astype(np.float32)
@@ -682,11 +681,11 @@ def build():
 
     mix = tape(mix, 1.1, 0.0)
     mix = compress(mix, -11, 2.4, .004, .18, 0.0)
-    mix = mix * (10 ** (2.4 / 20))
+    mix = mix * (10 ** (3.8 / 20))
     mix = np.tanh(mix * 0.98) / 0.98
     pk = np.abs(mix).max()
-    if pk > .94:
-        mix = mix / pk * .94
+    if pk > .89:
+        mix = mix / pk * .89
     fi = T(.02); fo = T(1.4)
     mix[:fi, :] *= np.linspace(0, 1, fi)[:, None].astype(np.float32)
     mix[-fo:, :] *= np.linspace(1, 0, fo)[:, None].astype(np.float32)

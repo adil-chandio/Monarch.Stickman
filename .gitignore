@@ -4,3 +4,9 @@ video_law1/out/video_silent.mp4
 video_law1/out/mix.wav
 video_law1/out/still_*.png
 video_law1/out/qa/
+video_law1/v2out/video_v2_silent.mp4
+video_law1/v2out/mix_v2.wav
+video_law1/v2out/still_*.png
+video_law1/v2out/qa/
+video_law1/v2out/render*.log
+video_law1/v2out/*.wav

@@ -107,6 +107,130 @@ def camera_for(n, tl):
     return z, fx, fy, shake_for(n, tl)
 
 # =====================================================================
+#  HOST CHARACTER  (hooded narrator)
+# =====================================================================
+HOST_PATH = os.path.join(ROOT, "assets_v3_host.png")
+_host_cache = {}
+
+
+def _host_sprite(h):
+    key = int(h)
+    if key in _host_cache:
+        return _host_cache[key]
+    if not os.path.exists(HOST_PATH):
+        _host_cache[key] = None
+        return None
+    im = Image.open(HOST_PATH).convert("RGBA")
+    w = int(im.width * h / im.height)
+    im = im.resize((w, h), Image.LANCZOS)
+    a = im.getchannel("A")
+    sh = Image.new("RGBA", (w + 80, h + 80), (0, 0, 0, 0))
+    sh.paste(Image.new("RGBA", (w, h), (10, 12, 18, 190)), (40, 46), a)
+    sh = sh.filter(ImageFilter.GaussianBlur(16))
+    # eye glow: bright pixels only, blurred
+    arr = np.asarray(im).astype(np.float32)
+    lum = arr[..., :3].max(2)
+    m = np.clip((lum - 150) / 105, 0, 1)[..., None]
+    gl = Image.fromarray((arr[..., :3] * m).astype(np.uint8)).filter(ImageFilter.GaussianBlur(9))
+    gl = Image.fromarray(np.dstack([np.asarray(gl), (np.asarray(gl).max(2) * .85).astype(np.uint8)]), "RGBA")
+    _host_cache[key] = (im, sh, gl)
+    return _host_cache[key]
+
+
+HOST_LINES = {
+    1: "Sab se mehngi galti?\nBoss se zyada chamakna.",
+    3: "Fouquet ne mehnat nahi,\nBOSS ko haraaya tha.",
+    7: "Rule yaad rakho:\ncredit pehle, hero baad mein.",
+    5: "Jalan sab se mehngi feeling hai.",
+    9: "Kamyabi chhupao \u2014 warna koi aur chhupa dega.",
+}
+
+
+def host_pose(tl, dur, delay=.18, hold=None, out=.42):
+    """0..1 visibility with slide-in / slide-out, plus idle bob"""
+    pin = eob(cl((tl - delay) / .46))
+    pout = 0.0
+    leave = (dur - out) if hold is None else hold
+    if tl > leave:
+        pout = eo(cl((tl - leave) / out))
+    vis = pin * (1 - pout)
+    bob = math.sin(tl * 2.3) * 5.0 * vis
+    tilt = -3.2 * (1 - pin) + math.sin(tl * 1.7) * .8
+    return vis, bob, tilt, pout
+
+
+def _host_head(h=170):
+    key = ("head", int(h))
+    if key in _host_cache:
+        return _host_cache[key]
+    if not os.path.exists(HOST_PATH):
+        _host_cache[key] = None
+        return None
+    im = Image.open(HOST_PATH).convert("RGBA")
+    head = im.crop((0, 0, im.width, int(im.height * .40)))
+    w = int(head.width * h / head.height)
+    head = head.resize((w, h), Image.LANCZOS)
+    arr = np.asarray(head).astype(np.float32)
+    arr[..., :3] = np.clip(arr[..., :3] * 1.18 + 12, 0, 255)
+    head = Image.fromarray(arr.astype(np.uint8), "RGBA")
+    gl = head.copy()
+    a = np.asarray(head).astype(np.float32)
+    lum = a[..., :3].max(2)
+    m = np.clip((lum - 150) / 105, 0, 1)[..., None]
+    gimg = Image.fromarray((a[..., :3] * m).astype(np.uint8)).filter(ImageFilter.GaussianBlur(8))
+    glow = Image.fromarray(np.dstack([np.asarray(gimg), (np.asarray(gimg).max(2) * .9).astype(np.uint8)]), "RGBA")
+    _host_cache[key] = (head, glow)
+    return _host_cache[key]
+
+
+def draw_host_strip(base, tl, dur, line, hold=3.4, delay=.10):
+    """compact presenter strip: head + one-sentence commentary, bottom of frame"""
+    sp = _host_head(168)
+    if sp is None:
+        return
+    vis = eob(cl((tl - delay) / .38))
+    if tl > hold:
+        vis *= 1 - eo(cl((tl - hold) / .34))
+    if vis <= .01:
+        return
+    head, glow = sp
+    lift = int((1 - vis) * 120)
+    x0, y0, x1, y1 = 40, 1702 + lift, 1040, 1892 + lift
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    d.rounded_rectangle([x0 + 3, y0 + 9, x1 + 3, y1 + 9], 26, fill=(6, 8, 12, 90))
+    d.rounded_rectangle([x0, y0, x1, y1], 26, fill=(11, 14, 21, 255))
+    d.rounded_rectangle([x0, y0, x1, y1], 26, outline=(201, 155, 44, 200), width=2)
+    # head, clipped inside a rounded window
+    win = (x0 + 12, y0 + 10, x0 + 12 + head.width, y1 - 10)
+    hh = min(head.height, win[3] - win[1])
+    crop = head.crop((0, head.height - hh, head.width, head.height))
+    mask = Image.new("L", crop.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, crop.width, crop.height], 18, fill=255)
+    lay.paste(crop, (win[0], win[3] - hh), mask)
+    g = glow.crop((0, glow.height - hh, glow.width, glow.height))
+    g.putalpha(g.getchannel("A").point(lambda v: int(v * (.45 + .55 * abs(math.sin(tl * 4.4))))))
+    lay.paste(g, (win[0], win[3] - hh), g)
+    # typed line
+    f = F(S7, 40)
+    d1 = ImageDraw.Draw(lay)
+    tx = win[0] + head.width + 26
+    tw_ = x1 - tx - 30
+    typed = int(cl((tl - delay - .12) / .04, 0, len(line)))
+    lines = wrap(d1, line[:typed], f, tw_)[:2] if typed > 0 else []
+    asc, desc = f.getmetrics()
+    lh = int((asc + desc) * 1.12)
+    ty = y0 + (y1 - y0) / 2 - lh * len(lines) / 2
+    for i, ln in enumerate(lines):
+        d1.text((tx, ty + i * lh), ln, font=f, fill=(247, 244, 236, 255))
+    if vis < .999:
+        lay.putalpha(lay.getchannel("A").point(lambda v: int(v * vis)))
+    base.paste(lay, (0, 0), lay)
+
+
+HOST_MOMENTS = {1: dict(hold=5.0), 3: dict(hold=5.2), 5: dict(hold=4.2), 7: dict(hold=5.2), 9: dict(hold=3.9)}
+
+# =====================================================================
 #  SCENES
 # =====================================================================
 def s1(base, t, dur):
@@ -726,6 +850,10 @@ def compose(t):
         elif 3.0 < tl < 3.3: gl = .5 * (1 - abs(tl - 3.15) / .15)
         if gl > 0:
             img = glitch(img, t, gl)
+
+    hm = HOST_MOMENTS.get(b["n"])
+    if hm:
+        draw_host_strip(img, tl, b["dur"], HOST_LINES.get(b["n"], ""), hold=hm["hold"])
 
     # cinematic post
     if tl < .66:

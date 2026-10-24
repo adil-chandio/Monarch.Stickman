@@ -18,7 +18,7 @@ from timeline_v4 import BEATS, TOTAL
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
-SFX_DIR = os.path.join(ROOT, "audio_v3", "sfx_raw")
+SFX_DIR = os.path.join(ROOT, "audio_v4", "sfx")
 os.makedirs(OUT, exist_ok=True)
 FF = "/tmp/v/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
 SR = 48000
@@ -32,17 +32,17 @@ def nz(n): return rng.normal(0, 1, n).astype(np.float32)
 def lp(x, fc, order=2):
     fc = np.clip(fc, 20, SR / 2 - 200)
     b, a = signal.butter(order, fc / (SR / 2), "low")
-    return signal.lfilter(b, a, x).astype(np.float32)
+    return signal.lfilter(b, a, x, axis=0).astype(np.float32)
 
 def hp(x, fc, order=2):
     fc = np.clip(fc, 20, SR / 2 - 200)
     b, a = signal.butter(order, fc / (SR / 2), "high")
-    return signal.lfilter(b, a, x).astype(np.float32)
+    return signal.lfilter(b, a, x, axis=0).astype(np.float32)
 
 def bp(x, f1, f2, order=2):
     f1 = max(20, f1); f2 = min(SR / 2 - 200, max(f1 + 50, f2))
     b, a = signal.butter(order, [f1 / (SR / 2), f2 / (SR / 2)], "band")
-    return signal.lfilter(b, a, x).astype(np.float32)
+    return signal.lfilter(b, a, x, axis=0).astype(np.float32)
 
 def adsr(n, a=0.005, d=0.1, s=0.7, r=0.2):
     t = np.arange(n) / SR
@@ -403,33 +403,14 @@ def hl(x):
 
 # ---------------------------------------------------------------- sfx polish
 def polish_sfx(s, kind):
-    """turn raw one-shots from the reference packs into smooth, premium accents:
-    darken the harsh 3-6 kHz noise, add weight, soften the edges."""
+    """light finishing for the synth library: sub-safety and soft edges only."""
     s = s.astype(np.float32)
     s = s - float(s.mean())
-    if kind in ("whoosh", "riser"):
-        fc, depth, pitch = 3000.0, .55, .84
-    elif kind == "downlifter":
-        fc, depth, pitch = 4200.0, .5, .80
-    elif kind == "click":
-        fc, depth, pitch = 5600.0, .45, .92
-    elif kind == "impact":
-        fc, depth, pitch = 6500.0, .25, .94
-    else:
-        fc, depth, pitch = 7000.0, .2, 1.0
+    s = hp(s, 34)
+    s = lp(s, 15000)
+    s = np.tanh(s * 1.05) / 1.05
+    return (s / max(float(np.abs(s).max()), 1e-6) * .97).astype(np.float32)
 
-    y = lp(s, fc) * .92 + lp(s, fc * 2.4) * .22
-    y = y - bp(s, 2800, 5200) * depth
-    y = hp(y, 40)
-    if pitch != 1.0:
-        y = signal.resample(y, max(16, int(len(y) / pitch))).astype(np.float32)
-        y = np.tanh(y * 1.0)
-    y = y / max(np.abs(y).max(), 1e-6)
-    f = min(T(.004), len(y) // 4)
-    if f > 2:
-        y[:f] *= np.linspace(0, 1, f).astype(np.float32)
-        y[-f:] *= np.linspace(1, 0, f).astype(np.float32)
-    return y.astype(np.float32)
 
 # ---------------------------------------------------------------- SFX library
 class SFXLib:
@@ -665,7 +646,7 @@ def build():
     music = music / max(np.abs(music).max(), 1e-9)
     music = music * (10 ** ((vr - 11.5) / 20) / max(rms_db(music), -90) if False else 1.0)
     m_r = rms_db(music)
-    music = music * 10 ** ((vr - 10.0 - m_r) / 20)
+    music = music * 10 ** ((vr - 12.0 - m_r) / 20)
 
     # sfx: accents peak just under the voice, never over it
     sfx = sfx / max(np.abs(sfx).max(), 1e-9) * 10 ** (-7.5 / 20)
@@ -673,7 +654,7 @@ def build():
     # duck
     d = smooth(venv[:n], 260)
     d = np.clip(d / max(d.max(), 1e-9) * 2.2, 0, 1)
-    duck_music = 1 - 0.52 * d
+    duck_music = 1 - 0.60 * d
     duck_sfx = 1 - 0.30 * d
 
     music = music * duck_music[:, None]

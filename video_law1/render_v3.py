@@ -107,128 +107,100 @@ def camera_for(n, tl):
     return z, fx, fy, shake_for(n, tl)
 
 # =====================================================================
-#  HOST CHARACTER  (hooded narrator)
+#  HOST CHARACTER  (the hooded narrator from the reference)
 # =====================================================================
-HOST_PATH = os.path.join(ROOT, "assets_v3_host.png")
+HOST_DIR = os.path.join(ROOT, "assets")
 _host_cache = {}
 
 
-def _host_sprite(h):
-    key = int(h)
+def host_sprite(name):
+    """RGBA sprite, cropped to its own ink, edge-padded for the glow layer."""
+    if name in _host_cache:
+        return _host_cache[name]
+    p = os.path.join(HOST_DIR, name + ".png")
+    if not os.path.exists(p):
+        return None
+    im = Image.open(p).convert("RGBA")
+    a = np.asarray(im)
+    ys, xs = np.where(a[..., 3] > 24)
+    if len(xs) == 0:
+        return None
+    x0, x1 = xs.min(), xs.max() + 1
+    y0, y1 = ys.min(), ys.max() + 1
+    im = im.crop((x0, y0, x1, y1))
+    _host_cache[name] = im
+    return im
+
+
+def _host_glow(name, h):
+    """bright eye/smile glow, blurred, same size as the sprite"""
+    key = ("g", name, int(h))
     if key in _host_cache:
         return _host_cache[key]
-    if not os.path.exists(HOST_PATH):
-        _host_cache[key] = None
+    im = host_sprite(name)
+    if im is None:
         return None
-    im = Image.open(HOST_PATH).convert("RGBA")
-    w = int(im.width * h / im.height)
+    w = max(8, int(im.width * h / im.height))
     im = im.resize((w, h), Image.LANCZOS)
-    a = im.getchannel("A")
-    sh = Image.new("RGBA", (w + 80, h + 80), (0, 0, 0, 0))
-    sh.paste(Image.new("RGBA", (w, h), (10, 12, 18, 190)), (40, 46), a)
-    sh = sh.filter(ImageFilter.GaussianBlur(16))
-    # eye glow: bright pixels only, blurred
     arr = np.asarray(im).astype(np.float32)
     lum = arr[..., :3].max(2)
-    m = np.clip((lum - 150) / 105, 0, 1)[..., None]
-    gl = Image.fromarray((arr[..., :3] * m).astype(np.uint8)).filter(ImageFilter.GaussianBlur(9))
-    gl = Image.fromarray(np.dstack([np.asarray(gl), (np.asarray(gl).max(2) * .85).astype(np.uint8)]), "RGBA")
-    _host_cache[key] = (im, sh, gl)
+    m = np.clip((lum - 140) / 110, 0, 1)[..., None]
+    g = (arr[..., :3] * m)
+    gimg = Image.fromarray(g.astype(np.uint8)).filter(ImageFilter.GaussianBlur(8))
+    ga = np.asarray(gimg).astype(np.float32)
+    ga = ga.max(2)
+    glow = Image.fromarray(np.dstack([ga, ga, ga + 6, np.clip(ga * .92, 0, 255)]).astype(np.uint8), "RGBA")
+    _host_cache[key] = (im, glow)
     return _host_cache[key]
 
 
-HOST_LINES = {
-    1: "Sab se mehngi galti?\nBoss se zyada chamakna.",
-    3: "Fouquet ne mehnat nahi,\nBOSS ko haraaya tha.",
-    7: "Rule yaad rakho:\ncredit pehle, hero baad mein.",
-    5: "Jalan sab se mehngi feeling hai.",
-    9: "Kamyabi chhupao \u2014 warna koi aur chhupa dega.",
-}
-
-
-def host_pose(tl, dur, delay=.18, hold=None, out=.42):
-    """0..1 visibility with slide-in / slide-out, plus idle bob"""
-    pin = eob(cl((tl - delay) / .46))
-    pout = 0.0
-    leave = (dur - out) if hold is None else hold
-    if tl > leave:
-        pout = eo(cl((tl - leave) / out))
-    vis = pin * (1 - pout)
-    bob = math.sin(tl * 2.3) * 5.0 * vis
-    tilt = -3.2 * (1 - pin) + math.sin(tl * 1.7) * .8
-    return vis, bob, tilt, pout
-
-
-def _host_head(h=170):
-    key = ("head", int(h))
-    if key in _host_cache:
-        return _host_cache[key]
-    if not os.path.exists(HOST_PATH):
-        _host_cache[key] = None
-        return None
-    im = Image.open(HOST_PATH).convert("RGBA")
-    head = im.crop((0, 0, im.width, int(im.height * .40)))
-    w = int(head.width * h / head.height)
-    head = head.resize((w, h), Image.LANCZOS)
-    arr = np.asarray(head).astype(np.float32)
-    arr[..., :3] = np.clip(arr[..., :3] * 1.18 + 12, 0, 255)
-    head = Image.fromarray(arr.astype(np.uint8), "RGBA")
-    gl = head.copy()
-    a = np.asarray(head).astype(np.float32)
-    lum = a[..., :3].max(2)
-    m = np.clip((lum - 150) / 105, 0, 1)[..., None]
-    gimg = Image.fromarray((a[..., :3] * m).astype(np.uint8)).filter(ImageFilter.GaussianBlur(8))
-    glow = Image.fromarray(np.dstack([np.asarray(gimg), (np.asarray(gimg).max(2) * .9).astype(np.uint8)]), "RGBA")
-    _host_cache[key] = (head, glow)
-    return _host_cache[key]
-
-
-def draw_host_strip(base, tl, dur, line, hold=3.4, delay=.10):
-    """compact presenter strip: head + one-sentence commentary, bottom of frame"""
-    sp = _host_head(168)
+def put_host(base, name, bottom=None, top=None, cx=None, left=None, right=None,
+             max_h=None, max_w=None, scale=1.0, opacity=1.0, bob=0.0, rot=0.0,
+             glow=True):
+    """place the hooded character, scaled by height so it reads as one figure"""
+    sp = _host_glow(name, int((max_h or 400) * max(.25, scale)))
     if sp is None:
         return
-    vis = eob(cl((tl - delay) / .38))
-    if tl > hold:
-        vis *= 1 - eo(cl((tl - hold) / .34))
+    im, gl = sp
+    vis = cl(opacity)
     if vis <= .01:
         return
-    head, glow = sp
-    lift = int((1 - vis) * 120)
-    x0, y0, x1, y1 = 40, 1702 + lift, 1040, 1892 + lift
-    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(lay)
-    d.rounded_rectangle([x0 + 3, y0 + 9, x1 + 3, y1 + 9], 26, fill=(6, 8, 12, 90))
-    d.rounded_rectangle([x0, y0, x1, y1], 26, fill=(11, 14, 21, 255))
-    d.rounded_rectangle([x0, y0, x1, y1], 26, outline=(201, 155, 44, 200), width=2)
-    # head, clipped inside a rounded window
-    win = (x0 + 12, y0 + 10, x0 + 12 + head.width, y1 - 10)
-    hh = min(head.height, win[3] - win[1])
-    crop = head.crop((0, head.height - hh, head.width, head.height))
-    mask = Image.new("L", crop.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle([0, 0, crop.width, crop.height], 18, fill=255)
-    lay.paste(crop, (win[0], win[3] - hh), mask)
-    g = glow.crop((0, glow.height - hh, glow.width, glow.height))
-    g.putalpha(g.getchannel("A").point(lambda v: int(v * (.45 + .55 * abs(math.sin(tl * 4.4))))))
-    lay.paste(g, (win[0], win[3] - hh), g)
-    # typed line
-    f = F(S7, 40)
-    d1 = ImageDraw.Draw(lay)
-    tx = win[0] + head.width + 26
-    tw_ = x1 - tx - 30
-    typed = int(cl((tl - delay - .12) / .04, 0, len(line)))
-    lines = wrap(d1, line[:typed], f, tw_)[:2] if typed > 0 else []
-    asc, desc = f.getmetrics()
-    lh = int((asc + desc) * 1.12)
-    ty = y0 + (y1 - y0) / 2 - lh * len(lines) / 2
-    for i, ln in enumerate(lines):
-        d1.text((tx, ty + i * lh), ln, font=f, fill=(247, 244, 236, 255))
-    if vis < .999:
-        lay.putalpha(lay.getchannel("A").point(lambda v: int(v * vis)))
-    base.paste(lay, (0, 0), lay)
+    iw, ih = im.size
+    if max_w is not None and max_h is not None:
+        w = min(max_w, max_h * iw / ih)
+    elif max_h is not None:
+        w = max_h * iw / ih
+    elif max_w is not None:
+        w = max_w
+    else:
+        w = iw
+    nw = max(8, int(round(w * scale)))
+    nh = max(4, int(round(nw * ih / iw)))
+    if rot:
+        im = im.rotate(rot, resample=Image.BICUBIC, expand=True)
+        gl = gl.rotate(rot, resample=Image.BICUBIC, expand=True)
+        nh = max(nh, im.height)
+    x = left if left is not None else (right - nw if right is not None else
+                                       (cx - nw / 2 if cx is not None else W / 2 - nw / 2))
+    y = bottom - nh + int(bob) if bottom is not None else (top if top is not None else H - nh)
+    # soft contact shadow
+    sh = Image.new("RGBA", (nw + 120, nh + 120), (0, 0, 0, 0))
+    ImageDraw.Draw(sh).ellipse([40, nh + 40, nw + 80, nh + 96], fill=(20, 18, 16, 150))
+    sh = sh.filter(ImageFilter.GaussianBlur(14))
+    a_sh = sh.getchannel("A").point(lambda v: int(v * vis * .8))
+    base.paste(sh, (int(x) - 40, int(y) - 40), a_sh)
+    if glow:
+        gg = gl.resize((nw, nh), Image.LANCZOS).copy()
+        gg.putalpha(gg.getchannel("A").point(
+            lambda v: int(v * vis * (.45 + .55 * abs(math.sin(t_glob * 4.2))))))
+        base.paste(gg, (int(x), int(y)), gg)
+    body = im.resize((nw, nh), Image.LANCZOS).copy()
+    body.putalpha(body.getchannel("A").point(lambda v: int(v * vis)))
+    base.paste(body, (int(x), int(y)), body)
+    return (x, y, nw, nh)
 
 
-HOST_MOMENTS = {1: dict(hold=5.0), 3: dict(hold=5.2), 5: dict(hold=4.2), 7: dict(hold=5.2), 9: dict(hold=3.9)}
+t_glob = 0.0
 
 # =====================================================================
 #  SCENES
@@ -274,7 +246,7 @@ def s1(base, t, dur):
     # character
     q = eo(sg(t, 0, .5))
     bob = math.sin(t * 2.2) * 6
-    put(base, "char_worried", cx=330, bottom=1830 + bob, max_h=800,
+    put_host(base, "host_worried", cx=330, bottom=1830 + bob, max_h=840,
         scale=.97 + .03 * q, opacity=cl(sg(t, 0, .16)))
     if t > 1.5:
         a = eo(sg(t, 1.5, .4))
@@ -325,7 +297,7 @@ def s2(base, t, dur):
     if t > 2.6:
         a = eo(sg(t, 2.6, .45))
         bob = math.sin(t * 2.4) * 5
-        put(base, "char_think", right=1045, bottom=1850 + bob, max_h=430, opacity=a * .95)
+        put_host(base, "host_think", right=1045, bottom=1850 + bob, max_h=470, opacity=a * .95)
 
 
 def s3(base, t, dur):
@@ -394,7 +366,7 @@ def s4(base, t, dur):
 
     if t > 2.1:
         a = eo(sg(t, 2.1, .4))
-        put(base, "char_happy", left=40, bottom=1856, max_h=420, opacity=a)
+        put_host(base, "host_happy", left=40, bottom=1856, max_h=460, opacity=a)
         pill(base, 730, 1660, "MEHMAAN HAIRAN", fill=GOLD, fg=INK, size=26, opacity=a, padx=24, track=2)
 
 
@@ -420,7 +392,7 @@ def s5(base, t, dur):
     if t > 2.35:
         a = eo(sg(t, 2.35, .45))
         bob = math.sin(t * 2.6) * 5
-        put(base, "char_think", cx=540, bottom=1868 + bob, max_h=520, opacity=a * .97)
+        put_host(base, "host_think", cx=540, bottom=1868 + bob, max_h=620, opacity=a * .97)
     if t > 4.1:
         a = eo(sg(t, 4.1, .4))
         # heat vignette
@@ -446,7 +418,7 @@ def s6(base, t, dur):
     q2 = eo(sg(t, .12, .45))
     if q2 > .02:
         bob = math.sin(t * 1.9) * 4
-        put(base, "char_worried", cx=540, bottom=1745 + bob, max_h=740, opacity=q2 * .96)
+        put_host(base, "host_worried", cx=540, bottom=1745 + bob, max_h=780, opacity=q2 * .96)
     if t > 1.75:
         sp = eob(sg(t, 1.75, .38))
         stamp(base, 540, 640, "GIRAFTAR!", ang=-8, color=RED, size=86,
@@ -488,7 +460,7 @@ def s7(base, t, dur):
         T(base, (540, 832), "MAT KARO", F(S7, 78), INK, alpha=a)
     if t > 1.9:
         a = eo(sg(t, 1.9, .45))
-        put(base, "char_think", cx=250, bottom=1875, max_h=600, opacity=a)
+        put_host(base, "host_think", cx=250, bottom=1875, max_h=660, opacity=a)
     if t > 3.7:
         a = eo(sg(t, 3.7, .45))
         shadow_rr(base, (560, 1150, 1010, 1350), 24, alpha=48, blur=16, dy=8, fill=WHITE)
@@ -523,7 +495,7 @@ def s8(base, t, dur):
     if t > 3.0:
         a = eo(sg(t, 3.0, .45))
         jump = -abs(math.sin(t * 3.2)) * 16
-        put(base, "char_happy", cx=862, bottom=1876 + jump, max_h=460, opacity=a)
+        put_host(base, "host_happy", cx=862, bottom=1876 + jump, max_h=500, opacity=a)
     if t > 4.7:
         a = eo(sg(t, 4.7, .4))
         pill(base, 470, 1620, "uske saaye se bada mat bano", fill=(38, 49, 66), size=26,
@@ -559,7 +531,7 @@ def s9(base, t, dur):
             T(base, (cx, cy + 285), "kabhi nahi bhoolte.", F(S7, 66), INK, alpha=a2)
     if t > 3.2:
         a = eo(sg(t, 3.2, .45))
-        put(base, "char_worried", cx=900, bottom=1878, max_h=370, opacity=a)
+        put_host(base, "host_worried", cx=900, bottom=1878, max_h=420, opacity=a)
 
 
 def s10(base, t, dur):
@@ -811,6 +783,8 @@ def scene_frame(n, tl):
     return base
 
 def compose(t):
+    global t_glob
+    t_glob = t
     # current beat
     idx = 0
     for i, b in enumerate(BEATS):
@@ -851,10 +825,6 @@ def compose(t):
         if gl > 0:
             img = glitch(img, t, gl)
 
-    hm = HOST_MOMENTS.get(b["n"])
-    if hm:
-        draw_host_strip(img, tl, b["dur"], HOST_LINES.get(b["n"], ""), hold=hm["hold"])
-
     # cinematic post
     if tl < .66:
         img = light_sweep(img, eo(cl(tl / .66)), .34 if b["n"] != 10 else .12)
@@ -874,7 +844,7 @@ def compose(t):
 # =====================================================================
 def render_video():
     total_frames = int(round(TOTAL * FPS))
-    silent = os.path.join(OUT, "video_v4_silent.mp4")
+    silent = os.path.join(OUT, "video_v6_silent.mp4")
     cmd = [FF, "-y", "-hide_banner", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -916,6 +886,6 @@ if __name__ == "__main__":
         v, n = render_video()
         print("silent:", v, n)
         wav = audio_v3.build()
-        final = os.path.join(OUT, "Law1_v4_CINEMATIC_9x16.mp4")
+        final = os.path.join(OUT, "Law1_v6_CINEMATIC_9x16.mp4")
         mux(v, wav, final)
         print("FINAL:", final)

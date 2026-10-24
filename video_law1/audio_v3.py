@@ -18,7 +18,7 @@ from timeline_v4 import BEATS, TOTAL
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
-SFX_DIR = os.path.join(ROOT, "audio_v4", "sfx")
+SFX_DIR = os.path.join(ROOT, "audio_v4", "sfx_gh")
 os.makedirs(OUT, exist_ok=True)
 FF = "/tmp/v/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
 SR = 48000
@@ -357,12 +357,13 @@ def build_music(total):
 
     # ---------------- transitions: reverse swell into every section
     for b in BEATS[1:]:
-        sw = R.sfx("riser", 1.6)
-        if np.abs(sw).max() < 1e-5:
+        st0 = T(max(0, b["start"] - 1.75))
+        st1 = T(b["start"] - .15)
+        if st1 - st0 < T(.45):
             continue
-        sw = hl(sw)
-        place(music, nr(sw, .012), b["start"] - 1.55, gain=1.0, width=.7,
-              rev=send, rev_gain=.45)
+        sw = hl(music[st0:st1].copy())          # swell built from the bed itself
+        place(music, nr(sw, .014), b["start"] - 1.60, gain=1.0, width=.7,
+              rev=send, rev_gain=.22)
 
     music = hp(music, 34)
     music = tape(music, 1.05, 0.0007)
@@ -395,21 +396,27 @@ def shimmer_env(n):
 
 
 def hl(x):
-    """make a reversed swell out of a one-shot"""
+    """make a reversed swell out of a one-shot (mono or stereo)"""
     y = x[::-1].copy()
     e = np.linspace(0, 1, len(y), dtype=np.float32) ** 2.2
+    if y.ndim == 2:
+        return (y * e[:, None]).astype(np.float32)
     return (y * e).astype(np.float32)
 
 
 # ---------------------------------------------------------------- sfx polish
-def polish_sfx(s, kind):
-    """light finishing for the synth library: sub-safety and soft edges only."""
-    s = s.astype(np.float32)
-    s = s - float(s.mean())
-    s = hp(s, 34)
-    s = lp(s, 15000)
-    s = np.tanh(s * 1.05) / 1.05
-    return (s / max(float(np.abs(s).max()), 1e-6) * .97).astype(np.float32)
+VERB_SFX = Reverb(.70, 2.6, .012, 5200, 11)   # whisper of space, no audible tail
+
+
+def polish_sfx(a, kind):
+    """light finishing for library one-shots: DC off, sub-safety, soft edges."""
+    a = a.astype(np.float32)
+    a = a - float(a.mean())
+    a = hp(a, 26)
+    a = lp(a, 15000)
+    a = np.tanh(a * 1.04) / 1.04
+    m = float(np.abs(a).max())
+    return (a / max(m, 1e-9) * .98).astype(np.float32)
 
 
 # ---------------------------------------------------------------- SFX library
@@ -426,109 +433,138 @@ class SFXLib:
                 a = np.stack([a, a], axis=1)
             if sr != SR:
                 a = signal.resample(a, int(len(a) * SR / sr), axis=0).astype(np.float32)
-            self.by_kind.setdefault(x["kind"], []).append((x["name"], a))
+            self.by_kind.setdefault(x["kind"], []).append(
+                (x["name"], polish_sfx(a, x["kind"]), x.get("sync", 0.0)))
 
-    def sfx(self, kind, dur=None):
+    def sfx(self, kind):
         pool = self.by_kind.get(kind) or []
         if not pool:
-            return np.zeros(T(dur or .3), dtype=np.float32)
-        name, a = pool[rng.integers(0, len(pool))]
-        s = polish_sfx(a.mean(axis=1), kind)
-        if dur:
-            n = T(dur)
-            s = s[:n] if len(s) >= n else np.pad(s, (0, n - len(s)))
-        return s.copy()
+            return None, 0.0
+        name, a, sync = pool[int(rng.integers(0, len(pool)))]
+        return a, sync
 
-    def has(self, k):
-        return bool(self.by_kind.get(k))
 
 R = SFXLib(SFX_DIR)
 
+
 def build_sfx(total):
-    """Editorial sound design — sparse, purposeful, quiet."""
+    """Sound design from the CC0 wyzowl/sfx-kit library, placed with catalogue
+    sync points so every hit meets its frame exactly."""
     n = T(total)
     buf = np.zeros((n, 2), dtype=np.float32)
     send = np.zeros((n, 2), dtype=np.float32)
 
-    def hit(kind, at, gain=.4, pan=0.0, dur=None, rev=.25, width=.2):
-        s = R.sfx(kind, dur)
-        if np.abs(s).max() < 1e-5:
+    def hit(kind, at, gain=.4, pan=0.0, sync=0.0, width=.12, rev=.03):
+        """start so that the sound's peak (at + sync) lands on `at`"""
+        s, sd = R.sfx(kind)
+        if s is None:
             return
-        s = s / np.abs(s).max()
-        place(buf, s, at, gain=gain, pan=pan, rev=send, rev_gain=rev, width=width)
+        place(buf, s, at - sync, gain=gain, pan=pan, rev=send, rev_gain=rev, width=width)
 
-    # --- beat 1: hook. one deep boom + a "whoosh" into the warning icon
-    b1 = BEATS[0]
-    hit("impact", b1["start"] + .02, .42, 0, 1.1, .18)
-    hit("whoosh", b1["start"] + .30, .22, -.2)
-    hit("click", b1["start"] + .95, .16, .25, .12)
-    hit("downlifter", b1["start"] + 4.2, .18, .1)
+    # ---- transition whooshes: one per scene change, auto-picked from `trans`
+    TW = {"punch": "whoosh-fast-hard", "slide": "whoosh-medium-medium",
+          "whoosh": "whoosh-medium-soft", "flash": "whoosh-fast-soft",
+          "slam": "whoosh-medium-hard"}
+    for b in BEATS:
+        name = TW.get(b.get("trans", "whoosh"), "whoosh-medium-medium")
+        s, sd = R.sfx("whoosh")
+        if s is not None and name:
+            place(buf, s, b["start"] - .02, gain=.16, pan=-.18, rev=send, rev_gain=.02, width=.35)
 
-    # --- beat 2: title. riser into crown + tonal ding
-    b2 = BEATS[1]
-    hit("riser", b2["start"] - .55, .30, 0, 1.2, .3)
-    hit("impact", b2["start"] + .05, .34, 0, 1.0, .2)
-    hit("tonal", b2["start"] + .62, .22, .15)
+    # ---- beat 1: hook. reverse whoosh into the slam, then the warning pills
+    b1 = BEATS[0]; st = b1["start"]
+    hit("reverse", st + 1.55, .24, .0, .682, width=.3)          # air drawn in
+    hit("slam", st + 1.55, .55, 0.0, .011, width=.15)            # door slam = RUK JAO!
+    hit("boom", st + 1.60, .38, 0.0, .021, width=.10)
+    hit("whoosh", st + 2.05, .20, -.25, .092, width=.30)
+    hit("click", st + 2.95, .16, .30, .021, width=.08)           # AAP pill
+    hit("click", st + 5.25, .18, -.25, .015, width=.08)          # CAREER WARNING
+    hit("boom", st + 5.35, .22, 0.0, .021, width=.10)
 
-    # --- beat 3: story. soft whoosh for the king entrance
-    b3 = BEATS[2]
-    hit("whoosh", b3["start"] + .18, .18, -.15)
-    hit("downlifter", b3["start"] + 1.95, .16, .2)
+    # ---- beat 2: title. riser into the crown, drum on LAW, ding on ONE
+    b2 = BEATS[1]; st = b2["start"]
+    hit("riser", st + 1.05, .30, 0.0, 1.978, width=.25)
+    hit("slam", st + 1.05, .45, 0.0, .034, width=.15)
+    hit("impact", st + 1.40, .30, -.12, .010, width=.10)
+    hit("tonal", st + 1.85, .18, .15, 0.0, width=.25)
+    hit("stinger", st + 2.55, .22, .0, 0.0, width=.20)
+    hit("shimmer", st + 3.05, .14, .2, 0.0, width=.4)
+    hit("pop", st + 4.45, .16, 0.0, .011, width=.15)
 
-    # --- beat 4: nobles murmur
-    b4 = BEATS[3]
-    hit("whoosh", b4["start"] + .05, .16, .2)
-    hit("click", b4["start"] + 1.02, .13, -.2, .1)
+    # ---- beat 3: France 1661 — spotlight, palace rising out of particles
+    b3 = BEATS[2]; st = b3["start"]
+    hit("whoosh", st + 0.60, .18, -.20, .438, width=.30)
+    hit("transform", st + 1.55, .22, .0, .003, width=.20)
+    hit("impact", st + 1.95, .26, .12, .010, width=.12)
+    hit("pop", st + 4.30, .15, -.2, .011, width=.15)
+    hit("shimmer", st + 6.00, .13, .1, 0.0, width=.35)
+    hit("swish", st + 7.30, .13, .25, .076, width=.20)
 
-    # --- beat 5: fire — design crackle by re-pitching clicks
-    b5 = BEATS[4]
-    hit("whoosh", b5["start"] + .02, .14, -.25)
-    for i in range(10):
-        at = b5["start"] + .55 + i * .26 + rng.uniform(-.05, .05)
-        hit("click", at, .05 + .04 * rng.random(), rng.uniform(-.5, .5), .07, .1, .1)
-    hit("riser", b5["start"] + b5["dur"] - 1.5, .20, 0, 1.4, .25)
+    # ---- beat 4: nobles murmuring
+    b4 = BEATS[3]; st = b4["start"]
+    hit("whoosh", st + .55, .16, .18, .209, width=.25)
+    hit("pop", st + 1.60, .12, -.30, .011, width=.15)
+    hit("click", st + 2.30, .10, .20, .008, width=.08)
+    hit("tonal", st + 2.85, .12, -.1, 0.0, width=.20)
+    hit("swish", st + 3.30, .12, -.2, .054, width=.18)
 
-    # --- beat 6: jail slam
-    b6 = BEATS[5]
-    hit("impact", b6["start"], .50, 0, 1.2, .22)
-    hit("downlifter", b6["start"] + .02, .22, -.15)
-    hit("whoosh", b6["start"] + 1.78, .26, .2)
-    hit("impact", b6["start"] + 1.80, .30, 0, .9, .25)
-    hit("click", b6["start"] + 2.85, .10, .2, .1)
+    # ---- beat 5: the king smiles — jealousy catches fire
+    b5 = BEATS[4]; st = b5["start"]
+    hit("boom", st + 0.10, .34, 0.0, .021, width=.12)            # rumble under
+    hit("whoosh", st + 0.85, .20, -.30, .201, width=.25)
+    hit("impact", st + 1.85, .34, .10, .010, width=.12)
+    hit("appear", st + 2.05, .20, -.1, .010, width=.20)           # poof / burst
+    hit("riser", st + 3.60, .24, 0.0, 1.978, width=.25)
+    hit("boom", st + 4.10, .30, 0.0, .095, width=.15)
 
-    # --- beat 7: teaching — clean, minimal
-    b7 = BEATS[6]
-    hit("whoosh", b7["start"] - .1, .14, 0)
-    hit("tonal", b7["start"] + 1.15, .14, -.1)
-    hit("click", b7["start"] + 3.75, .09, .25, .1)
+    # ---- beat 6: arrest. massive slam, iron latch, the door closing on him
+    b6 = BEATS[5]; st = b6["start"]
+    hit("reverse", st + 1.20, .26, 0.0, 1.165, width=.30)
+    hit("slam", st + 1.20, .55, 0.0, .084, width=.15)
+    hit("boom", st + 1.30, .34, 0.0, .052, width=.12)
+    hit("click", st + 3.00, .14, .25, .021, width=.08)            # latch
+    hit("impact", st + 3.05, .20, -.15, .010, width=.10)
+    hit("boom", st + 4.30, .24, 0.0, .021, width=.12)
+    hit("faller", st + 4.70, .16, -.1, .015, width=.20)
 
-    # --- beat 8: bright — sparkle clicks
-    b8 = BEATS[7]
-    hit("whoosh", b8["start"] + .02, .13, .2)
-    for i in range(6):
-        hit("click", b8["start"] + 1.9 + i * .17, .045 + .02 * rng.random(),
-            rng.uniform(-.6, .6), .07, .12, .05)
-    hit("tonal", b8["start"] + 2.0, .16, .1)
+    # ---- beat 7: teaching. clean, dry, on the beat
+    b7 = BEATS[6]; st = b7["start"]
+    hit("whoosh", st + .35, .14, 0.0, .229, width=.25)
+    hit("tonal", st + 1.05, .14, -.15, 0.0, width=.20)
+    hit("pop", st + 2.60, .14, .20, .011, width=.15)
+    hit("click", st + 4.10, .10, -.2, .009, width=.08)
+    hit("shimmer", st + 4.90, .12, .1, 0.0, width=.30)
 
-    # --- beat 9: quote — ticking + underline accent
-    b9 = BEATS[8]
-    for i in range(int(b9["dur"] / .5)):
-        hit("click", b9["start"] + .25 + i * .5, .05, .3 if i % 2 else -.3, .05, .05, .05)
-    hit("downlifter", b9["start"] + 2.2, .12, 0)
+    # ---- beat 8: bright, talent + credit
+    b8 = BEATS[7]; st = b8["start"]
+    hit("whoosh", st + .40, .16, .20, .096, width=.30)
+    hit("move", st + 1.70, .20, -.15, 0.0, width=.20)             # spring
+    hit("shimmer", st + 2.55, .16, .1, 0.0, width=.35)
+    hit("pop", st + 3.60, .16, .20, .011, width=.15)
+    hit("tonal", st + 4.30, .14, -.1, 0.0, width=.25)
 
-    # --- beat 10: end — riser + huge impact + tail
-    b10 = BEATS[9]
-    hit("riser", b10["start"] - 1.2, .30, 0, 2.0, .3)
-    hit("impact", b10["start"] + .82, .55, 0, 1.5, .35)
-    hit("downlifter", b10["start"] + 1.05, .20, -.2)
-    hit("whoosh", b10["start"] + 3.0, .16, .2)
+    # ---- beat 9: the quote. sub drop, then the two words land
+    b9 = BEATS[8]; st = b9["start"]
+    hit("boom", st + .10, .30, 0.0, .021, width=.12)
+    hit("shimmer", st + 2.10, .14, .1, 0.0, width=.35)
+    hit("click", st + 2.60, .16, .25, .015, width=.08)            # BEIZZATI snap
+    hit("tonal", st + 3.70, .13, -.15, 0.0, width=.25)
 
-    wet = VERB(buf)
-    buf = (buf * .96 + wet * .04).astype(np.float32)
-    return widen(buf, .22)
+    # ---- beat 10: end card. long riser, massive drum, sting, then out
+    b10 = BEATS[9]; st = b10["start"]
+    hit("riser", st - .55, .30, 0.0, 3.977, width=.25)
+    hit("slam", st + .05, .50, 0.0, .034, width=.15)
+    hit("stinger", st + 1.55, .24, .0, 0.0, width=.25)
+    hit("boom", st + 1.75, .34, 0.0, .095, width=.15)
+    hit("shimmer", st + 4.10, .14, .1, 0.0, width=.35)
+    hit("whoosh", st + 4.70, .14, .2, .403, width=.30)
+
+    # a whisper of space only, never a tail
+    wet = VERB_SFX(buf)
+    buf = (buf * .97 + wet * .03).astype(np.float32)
+    return widen(buf, .18)
 
 
-# ---------------------------------------------------------------- voice
 def decode(path):
     raw = subprocess.run([FF, "-v", "error", "-i", path, "-f", "f32le", "-ac", "2",
                           "-ar", str(SR), "-"], capture_output=True).stdout

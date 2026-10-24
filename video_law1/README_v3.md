@@ -1,5 +1,32 @@
 # Law 1 — "Never Outshine the Master" · v3 (cinematic, no-brand build)
 
+> **v6 (current build — `Law1_v6_CINEMATIC_9x16.mp4`, 63.33 s)**
+> - **The white circle-face mascots are gone.** Every `char_happy/think/worried`
+>   slot now shows the hooded narrator from the reference art
+>   (`assets/host_*.png`, 3 poses cut out of the reference), with a soft contact
+>   shadow and a pulsing glow on the eyes and smile. The bottom-of-frame message
+>   strip from v5 is removed — the character stands *in* the scene, no boxes.
+> - **Sound design is now a real library, not synthesised approximations.**
+>   `sfx_pack.py` curates 120 one-shots from the CC0
+>   [`wyzowl/sfx-kit`](https://github.com/wyzowl/sfx-kit) (48 kHz / 24-bit WAV) into
+>   `audio_v4/sfx_gh/`. Each entry keeps its catalogue **sync point**, so a hit is
+>   started so that its peak lands on the exact frame it belongs to instead of
+>   "somewhere near".
+> - **Music transitions de-echoed.** The section swells used to come from the SFX
+>   library through the reverb send at 45 % wet — that was the audible "echo on
+>   the music". They are now built from the bed itself (reverse + envelope) and
+>   sent at 22 %.
+> - **Stereo fix.** `lp/hp/bp` were calling `signal.lfilter(b, a, x)` on a 2-D
+>   array, which scipy treats as N independent 1-D signals — the left and right
+>   channels were filtered against their own past, breaking the image (the music
+>   bed measured **8.9 dB louder on the right**; that is the "one ear gets more
+>   music" the user heard on AirPods). All three filters now pass `axis=0`.
+> - Voice still 100 % dry; music reverb 6 %, SFX 3 % of a 0.7 s IR. Voice leads
+>   the music by 14.8 dB and the SFX by 18.3 dB in the 300–3 kHz speech band.
+> - Rebuild the pack with `python sfx_pack.py` (downloads nothing — it reads
+>   `/tmp/sfxkit/sfx-kit-main/sounds`, produced by
+>   `curl -L https://codeload.github.com/wyzowl/sfx-kit/tar.gz/refs/heads/main`).
+
 > **v4 (current build — `Law1_v4_CINEMATIC_9x16_FLOW.mp4`, 63.33 s)**
 > - **Voice flow fixed:** `tighten.py` trims every clip to speech, squeezes internal
 >   pauses > 0.34 s down to 0.18 s and regenerates `timeline_v4.py` with real

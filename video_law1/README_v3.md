@@ -1,6 +1,16 @@
-# Law 1 — "Never Outshine the Master" · v3 (cinematic, no-brand build)
+# Law 1 — "Never Outshine the Master" · v3+ (cinematic, no-brand build)
 
-> **v7 (current build — `Law1_v7_CINEMATIC_9x16.mp4`, 63.33 s)**
+> **v7 (current build — `v3out/MonarchVoice_Law1_v7_CINEMATIC_9x16.mp4`, 63.33 s)** — ✅ exported & verified
+> - **Measured on the exported file:** −12.2 LUFS integrated, −1.0 dBTP true peak, LRA 2.1 LU,
+>   1080×1920 / 30 fps / H.264 High @ 4.7 Mb/s + AAC 256 k stereo, 38 MB.
+> - Spectral QC of the final mix: 6.1 % of energy below 120 Hz (phone speakers still hear
+>   the body), 38.1 % in the 300–3000 Hz speech band, 2.9 % crack at 2–6 kHz.
+> - No dead air: every one of the 63 one-second windows is above −22 dB RMS.
+> - **Rebuild order matters** (this was missing before): `sfx_synth2.py` → `tighten.py`
+>   (regenerates `audio_v4/beatNN.wav` + `timeline_v4.py`) → `render_v3.py full`.
+>   The regenerated `timeline_v4.py` is byte-identical to the committed one, so the
+>   narration timing in git is authoritative. `audio_v4/` is git-ignored because it is
+>   fully derived from `audio_v2/`.
 > - **The GitHub SFX pack is gone.** `sfx_pack.py` and `audio_v4/sfx_gh/` are
 >   deleted; nothing from that library reaches the mix any more.
 > - **All sound design is synthesised in numpy** by `sfx_synth2.py` — 76
@@ -16,8 +26,9 @@
 >   energy below 120 Hz to ~75 % with a real 2–6 kHz crack on top.
 > - Voice still 100 % dry, music reverb 6 %, SFX 3 % of a 0.7 s IR. Voice leads
 >   the music by 14.8 dB and the SFX by 12.0 dB in the 300–3 kHz speech band.
-> - Master −12.1 LUFS / −1.0 dBTP, LRA 1.8 LU. Picture unchanged from v6 (the
->   hooded narrator, no branding), audio rebuilt and remuxed.
+> - Master targets −12 LUFS / −1.0 dBTP (v3.0 build measured −12.1 LUFS, LRA 1.8 LU;
+>   the exported v7 file measures −12.2 LUFS, LRA 2.1 LU). Picture unchanged from v6
+>   (the hooded narrator, no branding), audio rebuilt and remuxed.
 
 > **v6 (current build — `Law1_v6_CINEMATIC_9x16.mp4`, 63.33 s)**
 > - **The white circle-face mascots are gone.** Every `char_happy/think/worried`
@@ -108,9 +119,13 @@
 ## Rebuild
 
 ```bash
-python extract_sfx.py     # optional – regenerates the SFX library from assets_src/
-python audio_v3.py        # -> v3out/mix_v3.wav (+ stems)
-python render_v3.py full  # -> v3out/Law1_v3_CINEMATIC_9x16.mp4
+python sfx_synth2.py      # 76 synthesized one-shots -> audio_v4/sfx_py/ (+ index.json)
+python tighten.py         # narration trim/pause-squeeze -> audio_v4/beatNN.wav + timeline_v4.py
+python render_v3.py full  # frames -> v3out/video_v7_silent.mp4 + mix -> v3out/MonarchVoice_Law1_v7_CINEMATIC_9x16.mp4
 ```
+
+`python audio_v3.py` on its own rebuilds only `v3out/mix_v3.wav` (+ stems) — handy for
+iterating on the mix without re-rendering 1900 frames. `extract_sfx.py` is legacy (v3,
+reference-pack SFX) and is no longer part of the v7 chain.
 
 `render_v3.py stills 0.8 30 66` renders single frames; `render_v3.py timeline` prints the beat map.

@@ -26,3 +26,10 @@ video_law1/audio_v3/sfx_raw/
 video_law1/v3out/video_v4_silent.mp4
 video_law1/audio_v4/
 video_law1/audio_v4/sfx_gh/
+
+# v7 build artifacts (the final mp4 is versioned; everything else regenerates)
+video_law1/v3out/video_v7_silent.mp4
+video_law1/v3out/still_*.png
+video_law1/v3out/qa_*.jpg
+video_law1/audio_v4/
+video_law1/v3out/*.wav

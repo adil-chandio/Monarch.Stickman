@@ -2,8 +2,8 @@
 
 Reference video jaisa hi **whiteboard-cartoon explainer** — naya topic: **The 48 Laws of Power — Law 1: Never Outshine the Master**.
 
-**Latest final video (v9):** `v3out/MonarchVoice_Law1_v9_CINEMATIC_9x16.mp4` — 63.3 s, −12.2 LUFS, sound design generated from the render's own animation map, see `README_v9.md`
-**Earlier cuts:** v7/v8 removed from the repo — their sound design was replaced (history only)
+**Latest final video (v10):** `v3out/MonarchVoice_Law1_v10_CINEMATIC_9x16.mp4` — 63.3 s, −13.9 LUFS, new score + sparse focal SFX + cinema-layer picture (whip pans, zoom blur, anamorphic flare, light leaks), see `README_v10.md`
+**Earlier cuts:** v7/v8/v9 removed from the repo — each superseded (history only)
 **Original v1 cut:** `out/MonarchVoice_Law1_Never_Outshine_The_Master_9x16.mp4`
 **Specs:** 1080 × 1920 (9:16) · 65.7 sec · 30 fps · H.264 + AAC · −14 LUFS
 

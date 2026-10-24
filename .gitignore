@@ -45,3 +45,8 @@ video_law1/v3out/stem_*.wav
 video_law1/audio_v9/
 video_law1/v3out/mix_v9.wav
 video_law1/v3out/text_events.json
+
+# v10: score + mix artifacts (rebuild: music_v10.py -> audio_v10.py)
+video_law1/v3out/music_v10.wav
+video_law1/v3out/mix_v10.wav
+video_law1/v3out/video_v10_silent.mp4

@@ -728,16 +728,45 @@ def draw_overlay(base, tg, total, n):
 # =====================================================================
 #  CINEMATIC POST
 # =====================================================================
+_MASK_CACHE: dict = {}
+_QC = 4          # masks are built at 1/4 resolution and upsampled (16x faster)
+
+
+def _cached_mask(key, build):
+    m = _MASK_CACHE.get(key)
+    if m is None:
+        m = build()
+        _MASK_CACHE[key] = m
+    return m
+
+
+def _mask_np(img, mask, amt, color=None):
+    """blend `color` (or white) into the frame through a cached L mask.
+    The blend happens at half resolution — visually identical, ~3x cheaper."""
+    hw, hh = W // 2, H // 2
+    a = np.asarray(img.resize((hw, hh), Image.BILINEAR), dtype=np.float32)
+    m = np.asarray(mask.resize((hw, hh), Image.BILINEAR), dtype=np.float32)[..., None] * (amt / 255.0)
+    if color is None:
+        out = a + (255.0 - a) * m
+    else:
+        c = np.asarray(color, dtype=np.float32)[None, None, :]
+        out = a + (c - a) * m
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).resize((W, H), Image.BICUBIC)
+
+
 def light_sweep(img, p, amt=.30, ang=340):
-    """soft diagonal highlight that travels across the frame"""
-    x = -700 + p * (W + 1400)
-    lay = Image.new("L", (W, H), 0)
-    dd = ImageDraw.Draw(lay)
-    dd.polygon([(x, 0), (x + 300, 0), (x + 300 + 520, H), (x + 520, H)], fill=255)
-    lay = lay.filter(ImageFilter.GaussianBlur(85))
-    a = np.asarray(img).astype(np.float32)
-    m = (np.asarray(lay).astype(np.float32) / 255.0 * amt)[..., None]
-    return Image.fromarray(np.clip(a + (255.0 - a) * m, 0, 255).astype(np.uint8))
+    """soft diagonal highlight that travels across the frame (cached masks)."""
+    q = int(round(cl(p) * 48))
+    def build():
+        pp = q / 48.0
+        x = -700 + pp * (W + 1400)
+        lay = Image.new("L", (W // _QC, H // _QC), 0)
+        dd = ImageDraw.Draw(lay)
+        k = 1.0 / _QC
+        dd.polygon([(x * k, 0), ((x + 300) * k, 0),
+                    ((x + 300 + 520) * k, H * k), ((x + 520) * k, H * k)], fill=255)
+        return lay.filter(ImageFilter.GaussianBlur(85 * k))
+    return _mask_np(img, _cached_mask(("sweep", q), build), amt)
 
 
 def bloom(img, amt=.55, thr=205):
@@ -765,6 +794,99 @@ def weave(img, t, amp=.7):
     if abs(dx) < .25 and abs(dy) < .25:
         return img
     return img.transform(img.size, Image.AFFINE, (1, 0, -dx, 0, 1, -dy), resample=Image.BILINEAR)
+
+
+# =====================================================================
+#  V10 — cinema-layer effects
+#  (cheap by construction: 1/4-res cached masks, 1/8-res flares, 2-layer blur)
+# =====================================================================
+def zoom_blur(img, amt):
+    """Radial zoom blur — two scaled copies. Resized at half scale for speed."""
+    if amt <= .02:
+        return img
+    hw, hh = W // 2, H // 2
+    base = img.resize((hw, hh), Image.BILINEAR)
+    out = base
+    for k, w in ((1.032, .55),):
+        sc = base.resize((int(hw * k), int(hh * k)), Image.BILINEAR)
+        lay = Image.new("RGB", (hw, hh), (0, 0, 0))
+        lay.paste(sc, ((hw - sc.width) // 2, (hh - sc.height) // 2))
+        out = Image.blend(out, lay, w * amt)
+    return out.resize((W, H), Image.BICUBIC)
+
+
+def whip_blur(img, amt, horizontal=True):
+    """Directional smear used on whip-pan scene changes (1/3-res squeeze)."""
+    if amt <= .02:
+        return img
+    sq = img.resize((max(2, int(W * .10)), H), Image.BILINEAR).filter(ImageFilter.GaussianBlur(2))
+    sm = sq.resize((W, H), Image.BILINEAR)
+    return Image.blend(img, sm, min(.85, amt))
+
+
+_ANA_CACHE: dict = {}
+
+
+def anamorphic(img, amt):
+    """Horizontal blue streak over the highlights — 1/8-res streak, refreshed
+    every third frame (a flare does not need 30 Hz updates)."""
+    if amt <= .01:
+        return img
+    key = (int(t_glob * FPS) // 3, round(amt, 2))
+    cached = _ANA_CACHE.get(key)
+    if cached is not None:
+        return Image.fromarray(np.clip(np.asarray(img).astype(np.float32) + cached,
+                                       0, 255).astype(np.uint8))
+    sw, sh = W // 8, H // 8
+    a = np.asarray(img.resize((sw, sh), Image.BILINEAR)).astype(np.float32)
+    lum = a.max(2)
+    m = np.clip((lum - 185) / 70.0, 0, 1)[..., None]
+    bright = (a * m).astype(np.uint8)
+    st = Image.fromarray(bright).resize((sw, sh), Image.BILINEAR)
+    st = st.filter(ImageFilter.GaussianBlur(2.0))
+    sa = np.asarray(st.resize((W, H // 4), Image.BILINEAR)).astype(np.float32)
+    sa = np.asarray(Image.fromarray(np.clip(sa, 0, 255).astype(np.uint8))
+                    .resize((W, H), Image.BILINEAR), dtype=np.float32)
+    tint = _MASK_CACHE.get("ana_tint")
+    if tint is None:
+        tint = _MASK_CACHE["ana_tint"] = np.array([0.55, 0.78, 1.0], dtype=np.float32)
+    streak_full = sa * tint[None, None, :] * (amt * .50)      # (H, W, 3)
+    if len(_ANA_CACHE) > 40:
+        _ANA_CACHE.clear()
+    _ANA_CACHE[key] = streak_full.astype(np.float32)
+    add = streak_full
+    return Image.fromarray(np.clip(np.asarray(img).astype(np.float32) + add, 0, 255).astype(np.uint8))
+
+
+def leak(img, amt, seed=0.0):
+    """Warm light leak from a frame corner — cached 1/4-res mask."""
+    if amt <= .01:
+        return img
+    q = int(round(amt * 40))
+    key = ("leak", int(seed * 1000) % 997, q)
+    def build():
+        lay = Image.new("L", (W // _QC, H // _QC), 0)
+        dd = ImageDraw.Draw(lay)
+        cx = int(W * (.12 + .76 * ((seed * 37) % 1.0)) / _QC)
+        cy = int(H * (.08 + .22 * ((seed * 61) % 1.0)) / _QC)
+        r = int(W * .55 / _QC)
+        dd.ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+        return lay.filter(ImageFilter.GaussianBlur(120 / _QC))
+    return _mask_np(img, _cached_mask(key, build), q / 40.0, color=(255, 176, 96))
+
+
+def vignette_pulse(img, amt):
+    if amt <= .01:
+        return img
+    return apply_vignette(img, .10 + .22 * amt)
+
+
+def exposure_breathe(img, t):
+    """±0.7 % exposure wobble: the frame feels alive even when nothing moves."""
+    k = 1.0 + .007 * math.sin(t * 1.7) + .004 * math.sin(t * 4.3 + 1.1)
+    if abs(k - 1.0) < 1e-4:
+        return img
+    return ImageEnhance.Brightness(img).enhance(k)
 
 
 # =====================================================================
@@ -798,15 +920,26 @@ def compose(t):
     tl = t - b["start"]
     img = scene_frame(b["n"], tl)
 
-    # transition into this beat
+    # transition into this beat (v10: whip-pans get a directional smear)
     if idx > 0:
         prev = BEATS[idx - 1]
         p = (t - (b["start"] - TRANS_W * .5)) / TRANS_W
         if 0 <= p <= 1:
             a = scene_frame(prev["n"], prev["dur"] + (t - b["start"]) + .05)
             img = transition(a, img, b["trans"], p)
+            if b["trans"] in ("slide", "whoosh"):
+                img = whip_blur(img, math.sin(math.pi * cl(p)) * .55)
+            if b["trans"] == "slam":
+                img = zoom_blur(img, math.sin(math.pi * cl(p)) * .8)
             if b["trans"] in ("flash", "punch"):
                 img = flash(img, WHITE, .34 * math.sin(math.pi * cl(p)))
+
+    # ---- punch optics run on the picture only, so captions stay razor sharp
+    ic0 = impact_curve(b["n"], tl)
+    if ic0 > .006:
+        k0 = min(1.0, ic0 / .030)
+        img = chroma(img, int(round(1 + 3 * k0)))
+        img = zoom_blur(img, .42 * k0)
 
     # caption (all beats except end card, which carries its own text)
     if b["n"] == 1 and tl < BEATS[0]["cue_times"][1]["t"]:
@@ -830,15 +963,23 @@ def compose(t):
         if gl > 0:
             img = glitch(img, t, gl)
 
-    # cinematic post
+    # ---- cinematic post (v10)
     if tl < .66:
         img = light_sweep(img, eo(cl(tl / .66)), .34 if b["n"] != 10 else .12)
+
+    # every scene entrance: a warm leak + a slow anamorphic lift
+    if tl < .85:
+        img = leak(img, .22 * math.sin(math.pi * cl(tl / .85)) ** 1.4, seed=b["n"] * .37)
+    ic = impact_curve(b["n"], tl)
+    img = anamorphic(img, .55 if b["n"] == 10 else .30)
+
     if b["n"] == 10:
         img = bloom(img, .55, 200)
-    ic = impact_curve(b["n"], tl)
     if ic > .008:
-        img = chroma(img, int(round(1 + 5 * min(1.0, ic / .030))))
+        # vignette kick only — the blur/chroma already happened on the picture
+        img = vignette_pulse(img, min(1.0, ic / .030) * .7)
     img = weave(img, t, .8 if b["n"] != 10 else 1.2)
+    img = exposure_breathe(img, t)
 
     draw_overlay(img, t, TOTAL, b["n"])
     img = apply_grain(img, int(t * FPS), .05)
@@ -866,7 +1007,7 @@ def derived_events():
 # =====================================================================
 def render_video():
     total_frames = int(round(TOTAL * FPS))
-    silent = os.path.join(OUT, "video_v8_silent.mp4")
+    silent = os.path.join(OUT, "video_v10_silent.mp4")
     cmd = [FF, "-y", "-hide_banner", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -921,11 +1062,11 @@ if __name__ == "__main__":
         for b in BEATS:
             print(f"  beat {b['n']:2d} {b['kind']:7s} start {b['start']:6.2f} dur {b['dur']:5.2f}")
     else:
-        import audio_v8
+        import audio_v10
         print(f"TOTAL {TOTAL:.2f}s  frames {int(TOTAL * FPS)}")
         v, n = render_video()
         print("silent:", v, n)
-        wav = audio_v8.build()
-        final = os.path.join(OUT, "MonarchVoice_Law1_v8_CINEMATIC_9x16.mp4")
+        wav = audio_v10.build()
+        final = os.path.join(OUT, "MonarchVoice_Law1_v10_CINEMATIC_9x16.mp4")
         mux(v, wav, final)
         print("FINAL:", final)

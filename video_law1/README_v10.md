@@ -1,6 +1,6 @@
 # Law 1 — v10: score-driven mix + cinema-layer picture
 
-> **Current build:** `v3out/MonarchVoice_Law1_v10_CINEMATIC_9x16.mp4`
+> **Current build:** `v3out/MonarchVoice_Law1_v11_CINEMATIC_9x16.mp4` (v10 file retired — it carried the echo the user rejected)
 > 63.33 s · 1080×1920 · 30 fps · H.264 High 5.1 Mb/s + AAC 260 k · **41 MB**
 > **−13.9 LUFS / −1.0 dBTP / LRA 1.6** (ideal for YouTube/IG/Reels at −14)
 
@@ -83,9 +83,44 @@ python render_v3.py events   # animation map (needed by the design pass)
 python sfx_v9.py             # sound kit (unchanged from v9)
 python music_v10.py          # the score           -> v3out/music_v10.wav
 python audio_v10.py          # the mix             -> v3out/mix_v10.wav + stems
-python render_v3.py full     # -> v3out/MonarchVoice_Law1_v10_CINEMATIC_9x16.mp4
+python render_v3.py full     # -> picture + mix (then remux, see the v11 section)
 ```
 
 Every layer is written as a stem (`stem_voice / stem_music / stem_music_ducked /
 stem_keys / stem_accents`) so any single element can be soloed and judged.
 Tuning lives in `audio_v10.CONFIG` and `music_v10.ENERGY`.
+
+## v11 — the "echo" fix (dry room)
+
+The v10 score was rejected by ear: *"peeche bilawaja ka echo type irritating music
+sound"*. It was not the notes — it was the space around them:
+
+| | v10 (rejected) | v11 (dry room) |
+|---|---|---|
+| reverb IR | 1.6 s hall **+** 1.5 s plate | one 0.42 s room, decay 11.0, damp 3800 Hz |
+| wet path | per-element send **and** a second bus pass | **one** pass, bus wet 0.30 → 0.15 |
+| send gains | 0.18 – 0.85 | 0.02 – 0.13 |
+| wet band | full range | HP 260 / LP 5200 (dark, sits behind) |
+| constant noise | white-noise "air bed" ×0.055 + per-bar BP "husk" ×0.020 | **deleted** |
+| tape hiss | 0.004 | 0.0 |
+| piano tail | 1.9 s (notes pile up) | 1.35 s |
+| stereo width | 0.26 (reads as echo on headphones) | 0.12 |
+| **measured reverb** | ≈100 % of dry | **19 % of dry (−14.6 dB)** |
+
+Music now sits **5 dB** under the voice (score target `MUSIC_UNDER_VOICE_DB=3.0`,
+duck depth 0.34) instead of 7.5 dB, so the mood is audible without wash.
+
+### v11 QC (`MonarchVoice_Law1_v11_CINEMATIC_9x16.mp4`, 42 MB, 63.32 s)
+
+- −14.0 LUFS · −1.0 dBTP (stereo decode) · **0 clipped samples**
+- mix RMS: voice −21.0 · music −26.0 · accents −38.1 · keys −49.5 dBFS
+- spectrum: **8–16 kHz = 0.03 %** (no hiss bed), 0–120 Hz 17.5 %, 120–500 Hz 63.3 %
+- picture untouched — v11 is a **remux** of the v10 video (`-c:v copy`), no re-render
+
+```bash
+python music_v10.py                      # dry-room score
+python audio_v10.py                      # mix_v10.wav
+ffmpeg -i <silent_picture>.mp4 -i v3out/mix_v10.wav \
+       -map 0:v -c:v copy -map 1:a -c:a aac -b:a 256k -movflags +faststart -shortest \
+       v3out/MonarchVoice_Law1_v11_CINEMATIC_9x16.mp4
+```

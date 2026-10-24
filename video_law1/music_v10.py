@@ -32,6 +32,29 @@ from audio_v3 import (SR, T, NOTE, CHORDS, ROOT, piano, strings, sub808, kick,
                       drone, place, nr, widen, rng)
 from timeline_v4 import BEATS, TOTAL
 
+# A tight, dark room instead of a 1.6 s hall. This is the single biggest reason
+# the bed sounded like an echo: the old chain sent every element into a long
+# convolution AND added the same reverb again on the whole bus.
+ROOM = A.Reverb(0.42, 11.0, 0.010, 3800, 7)      # 0.42 s, fast decay, dark
+SEND_SCALE = float(os.environ.get("MV_REVERB", "1.0"))   # 0 = fully dry (for QA)
+BUS_WET = 0.15
+
+
+def _send(buf, at, sig, gain=1.0, width=0.0, rev_gain=0.0, pan=0.0):
+    if SEND_SCALE > 0:
+        A.place(buf, sig, at, gain=gain, pan=pan, width=width, rev=None)
+    return None
+
+
+def verb(x):
+    if x.ndim == 1:
+        x = np.stack([x, x], axis=1)
+    wet = ROOM(x)
+    wet = A.hp(wet, 260)          # keep the wash out of the low end
+    wet = A.lp(wet, 5200)         # and out of the sibilance band
+    return wet.astype(np.float32)
+
+
 BPM = 84.0
 BEAT = 60.0 / BPM
 BAR = BEAT * 4
@@ -78,15 +101,10 @@ def build(total: float) -> np.ndarray:
         # the end, so what matters here is the *balance* (sub / pad / piano).
         sub_g = (0.30 + 0.16 * en) * (0.55 if en < .2 else 1.0)
         place(music, sub / max(np.abs(sub).max(), 1e-9) * sub_g,
-              t0, gain=1.0, width=.10, rev=send, rev_gain=.05)
+              t0, gain=1.0, width=.10, rev=send, rev_gain=.02)
 
         # ---------------------------------------------------------------- air
         a_n = T(BAR * 1.1)
-        husk = A.nz(a_n) * np.sin(np.linspace(0, np.pi, a_n)) ** 1.4
-        husk = A.bp(husk, 500, 6000) * 0.020
-        place(music, np.stack([husk, np.roll(husk, 240)], axis=1), t0, gain=1.0,
-              rev=send, rev_gain=.30)
-
         if en < .2:
             continue        # the hush of the quote/shock: voice owns it
 
@@ -95,7 +113,7 @@ def build(total: float) -> np.ndarray:
                       bright=.30 + .36 * en, attack=.80, release=1.5)
         padn = pad / max(np.abs(pad).max(), 1e-9)
         place(music, A.hp(padn, 180) * (0.118 + 0.075 * en), t0, gain=1.0, width=.60,
-              rev=send, rev_gain=.50)
+              rev=send, rev_gain=.10)
 
         # -------------------------------------------------------------- piano
         if en < .6:
@@ -104,10 +122,10 @@ def build(total: float) -> np.ndarray:
             pat = [(0, 0.0), (2, .5), (4, 1.0), (3, 1.5), (2, 2.0), (3, 2.5), (4, 3.0), (3, 3.5)]
         for k, pos in pat:
             f = NOTE[tones[min(k, len(tones) - 1)]] * 2
-            p = piano(f, 1.9, bright=.90 + .25 * en, vel=1.0)
+            p = piano(f, 1.35, bright=.90 + .25 * en, vel=1.0)
             pn = p / max(np.abs(p).max(), 1e-9)
             place(music, pn * (0.105 + 0.070 * en), t0 + pos * BEAT, gain=1.0,
-                  pan=float(rng.uniform(-.20, .20)), rev=send, rev_gain=.55)
+                  pan=float(rng.uniform(-.20, .20)), rev=send, rev_gain=.11)
 
         # ------------------------------------------------------------ celesta
         # sparse high bells: this is where the score gets its sheen, without
@@ -120,7 +138,7 @@ def build(total: float) -> np.ndarray:
                 tone, _ = sfx_v9.bell(NOTE[tones[k]] * 4)
                 tn = tone / max(np.abs(tone).max(), 1e-9)
                 place(music, tn * (0.080 * en), t0 + pos * BEAT,
-                      pan=float(rng.uniform(-.35, .35)), rev=send, rev_gain=.85)
+                      pan=float(rng.uniform(-.35, .35)), rev=send, rev_gain=.13)
 
         # -------------------------------------------------------------- cello
         if en >= .55:
@@ -128,7 +146,7 @@ def build(total: float) -> np.ndarray:
                           attack=.55, release=1.1, detune=5.0)
             cel = cel / max(np.abs(cel).max(), 1e-9)
             place(music, cel * (0.075 * en), t0 + BEAT * .5, gain=1.0, width=.3,
-                  rev=send, rev_gain=.35)
+                  rev=send, rev_gain=.06)
 
         # -------------------------------------------------------------- pulse
         if en >= .65:
@@ -136,7 +154,7 @@ def build(total: float) -> np.ndarray:
                 k = kick(.42, 96, 44, .28)
                 k = k / max(np.abs(k).max(), 1e-9)
                 place(music, k * (0.20 * en), t0 + pos * BEAT, gain=1.0,
-                      rev=send, rev_gain=.10)
+                      rev=send, rev_gain=.02)
 
         # --------------------------------------------------------------- bell
         if en >= .70 and bi % 2 == 0:
@@ -144,7 +162,7 @@ def build(total: float) -> np.ndarray:
             tone, _ = sfx_v9.bell(NOTE[tones[3]] * 4)
             tone = tone / max(np.abs(tone).max(), 1e-9)
             place(music, tone * (0.085 * en), t0 + BEAT * 3.5,
-                  pan=float(rng.uniform(-.3, .3)), rev=send, rev_gain=.75)
+                  pan=float(rng.uniform(-.3, .3)), rev=send, rev_gain=.10)
 
     # ------------------------------------------------------- section swells
     for b, strength in ((BEATS[1], 1.0), (BEATS[5], 0.8), (BEATS[9], 1.0)):
@@ -154,14 +172,14 @@ def build(total: float) -> np.ndarray:
         x = A.nz(sw) * np.linspace(0, 1, sw) ** 2.2
         x = A.bp(x, 300, 5200) * .06 * strength
         place(music, np.stack([x, np.roll(x, 300)], axis=1), t - 1.3, gain=1.0,
-              rev=send, rev_gain=.4)
+              rev=send, rev_gain=.06)
         # a low taiko-ish hit exactly on the cut
         hit = A.kick(.9, 110, 38, .5)
         hit = hit / max(np.abs(hit).max(), 1e-9)
-        place(music, hit * (0.26 * strength), t, gain=1.0, rev=send, rev_gain=.18)
+        place(music, hit * (0.26 * strength), t, gain=1.0, rev=send, rev_gain=.04)
 
-    wet = A.VERB(send)
-    music = (music + wet * .55).astype(np.float32)
+    # exactly one reverb pass, at 30 % — the sends above are the only wet
+    music = (music + verb(send) * BUS_WET * SEND_SCALE).astype(np.float32)
     music = A.hp(music, 30)
 
     # ---- tone: a score with weight, sheen and a hole where the voice lives.
@@ -175,17 +193,10 @@ def build(total: float) -> np.ndarray:
     music = music + A.bp(music, 1800, 7000, order=2) * 0.50     # sheen / bow noise
     music = music + A.hp(music, 5200) * 0.30                    # air
 
-    # a dedicated air bed so the score has a top end instead of ending at 6 kHz
-    n_a = len(music)
-    air = np.asarray(A.hp(A.nz(n_a), 7000, order=2), dtype=np.float32)
-    if air.ndim == 1:
-        air = np.stack([air, np.roll(air, 311)], axis=1)
-    t_a = np.arange(n_a) / SR
-    env_a = (0.60 + 0.40 * np.sin(2 * np.pi * 0.12 * t_a)).astype(np.float32)
-    air = air * env_a[:, None]
-    music = music + air * 0.055
-    music = A.tape(music, 1.12, 0.0)
-    music = A.widen(music, .26)
+    # (the old white-noise "air bed" is gone: a constant 7 kHz hiss reads as
+    #  tape noise, not as air. The top end now comes from the instruments.)
+    music = A.tape(music, 1.10, 0.0)
+    music = A.widen(music, .12)
     pk = float(np.abs(music).max())
     return (music / max(pk, 1e-9) * 0.88).astype(np.float32)
 

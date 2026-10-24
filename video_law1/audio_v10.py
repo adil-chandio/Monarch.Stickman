@@ -49,10 +49,10 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
 
 CONFIG = dict(
-    MUSIC_UNDER_VOICE_DB=5.0,   # music RMS under voice RMS (ducked on top)
+    MUSIC_UNDER_VOICE_DB=3.0,   # music RMS under voice RMS (ducked on top)
     ACCENT_PEAK=-9.0,
     KEY_PEAK=-15.0,             # typing is an accent, not a layer
-    DUCK_MUSIC=0.42,            # how far the voice pushes the score down
+    DUCK_MUSIC=0.34,            # how far the voice pushes the score down
     DUCK_ACCENT=0.30,
     MIN_GAP=0.55,               # no two accents closer than this
     REVERB=0.06,

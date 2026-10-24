@@ -1,91 +1,1645 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MonarchVoice — The 48 Laws of Power (Easy Urdnglish Audiobook)</title>
-  <style>
-    :root {
-      --bg: #0b0c10;
-      --card: #141720;
-      --gold: #d4af37;
-      --text: #f3f4f6;
-      --muted: #9ca3af;
-    }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      padding: 2rem 1rem;
-    }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 2rem;
-      padding: 2rem;
-      background: linear-gradient(145deg, #161925, #0f111a);
-      border: 1px solid rgba(212, 175, 55, 0.35);
-      border-radius: 16px;
-    }
-    h1 {
-      color: var(--gold);
-      margin: 0 0 0.5rem 0;
-      font-size: 2rem;
-    }
-    .master-box {
-      background: var(--card);
-      border: 2px solid var(--gold);
-      border-radius: 14px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
-    audio {
-      width: 100%;
-      margin-top: 0.75rem;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1rem;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 1rem;
-    }
-    .card h3 {
-      margin: 0 0 0.4rem 0;
-      color: var(--gold);
-      font-size: 1rem;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0b0c10" />
+<meta name="description" content="MonarchVoice — The 48 Laws of Power in Easy Urdnglish. Interactive audiobook player with all 48 laws, volumes, and quick summaries." />
+<title>MonarchVoice — The 48 Laws of Power (Easy Urdnglish Audiobook)</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>" />
+<style>
+  :root {
+    --bg: #08090d;
+    --bg-2: #0d0f16;
+    --card: #12151f;
+    --card-2: #171b27;
+    --line: rgba(255, 255, 255, 0.08);
+    --gold: #d4af37;
+    --gold-2: #f2d477;
+    --gold-dim: rgba(212, 175, 55, 0.16);
+    --text: #f4f5f7;
+    --muted: #98a0b3;
+    --muted-2: #6c7488;
+    --ok: #4ade80;
+    --radius: 16px;
+    --shadow: 0 18px 50px -20px rgba(0, 0, 0, 0.85);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 600px at 85% -10%, rgba(212, 175, 55, 0.10), transparent 60%),
+      radial-gradient(800px 500px at 0% 100%, rgba(90, 70, 160, 0.10), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  ::selection { background: var(--gold); color: #101216; }
+
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 20px 18px 40px;
+  }
+
+  /* ---------------------------------------------------------- top bar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: linear-gradient(150deg, rgba(23, 27, 39, 0.92), rgba(11, 13, 20, 0.92));
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand-mark {
+    width: 44px; height: 44px; flex: 0 0 44px;
+    display: grid; place-items: center;
+    font-size: 22px;
+    border-radius: 13px;
+    background: linear-gradient(150deg, #2a2410, #16130a);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    box-shadow: 0 0 24px -6px rgba(212, 175, 55, 0.6) inset;
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: 0.2px;
+    background: linear-gradient(120deg, var(--gold-2), var(--gold) 60%, #a9861f);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    white-space: nowrap;
+  }
+  .brand p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+  .topbar .spacer { flex: 1 1 auto; }
+
+  .stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stat {
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 6px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .stat b { color: var(--gold-2); font-weight: 600; }
+
+  /* ---------------------------------------------------------- layout */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+    align-items: start;
+  }
+
+  .panel {
+    background: linear-gradient(180deg, var(--card), var(--bg-2));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  /* ---------------------------------------------------------- library */
+  .library { display: flex; flex-direction: column; max-height: calc(100vh - 140px); position: sticky; top: 20px; }
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    padding: 10px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .tab {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 9px 4px;
+    border-radius: 9px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tab:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+  .tab[aria-selected="true"] {
+    color: #191508;
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    box-shadow: 0 6px 18px -8px rgba(212, 175, 55, 0.9);
+  }
+
+  .search { padding: 10px 10px 6px; }
+  .search input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .search input::placeholder { color: var(--muted-2); }
+  .search input:focus { border-color: rgba(212, 175, 55, 0.5); outline: none; }
+
+  .list { overflow-y: auto; padding: 6px 8px 14px; scrollbar-width: thin; }
+  .list::-webkit-scrollbar { width: 8px; }
+  .list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 8px; }
+
+  .row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 11px;
+    padding: 9px 10px;
+    margin-bottom: 2px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .row:hover { background: rgba(255, 255, 255, 0.045); }
+  .row[data-active="true"] {
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.03));
+    border-color: rgba(212, 175, 55, 0.35);
+  }
+  .row-num {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    border-radius: 9px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--gold-2);
+    background: rgba(212, 175, 55, 0.10);
+    border: 1px solid rgba(212, 175, 55, 0.22);
+  }
+  .row[data-active="true"] .row-num {
+    color: #17130a;
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    border-color: transparent;
+  }
+  .row-main { min-width: 0; }
+  .row-title {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-meta { display: flex; align-items: center; gap: 6px; }
+  .row-time { font-size: 11px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+  .check { color: var(--ok); font-size: 12px; }
+  .empty { padding: 24px 12px; text-align: center; color: var(--muted-2); font-size: 13px; }
+
+  /* ---------------------------------------------------------- player */
+  .main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+  .resume {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 1px dashed rgba(212, 175, 55, 0.4);
+    background: rgba(212, 175, 55, 0.06);
+    font-size: 13px;
+  }
+  .resume[hidden] { display: none; }
+  .resume .r-text { flex: 1; min-width: 0; }
+  .resume .r-text b { color: var(--gold-2); }
+  .resume .r-text span { color: var(--muted); display: block; font-size: 11.5px; margin-top: 2px; }
+  .icon-btn {
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    width: 38px; height: 38px;
+    display: grid; place-items: center;
+    font-size: 15px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .icon-btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .icon-btn:active { transform: scale(0.95); }
+  .icon-btn[aria-pressed="true"] {
+    color: #191508;
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+    border-color: transparent;
+  }
+
+  .player { padding: 22px; }
+
+  .player-top {
+    display: grid;
+    grid-template-columns: 168px minmax(0, 1fr);
+    gap: 22px;
+    align-items: center;
+  }
+
+  .cover {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 120% at 25% 15%, rgba(242, 212, 119, 0.55), transparent 55%),
+      conic-gradient(from 210deg, #1b1608, #3a2f10, #17130a, #2a2210, #1b1608);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    box-shadow: 0 24px 60px -28px rgba(212, 175, 55, 0.65), inset 0 0 60px rgba(0, 0, 0, 0.6);
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 7px);
+    opacity: 0.5;
+  }
+  .cover .crown { position: relative; z-index: 1; font-size: 46px; filter: drop-shadow(0 6px 16px rgba(0,0,0,.6)); }
+  .cover .cnum {
+    position: relative; z-index: 1;
+    margin-top: 6px;
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #f6e6b4;
+    opacity: 0.85;
+  }
+  .cover.spin .vinyl {
+    animation: spin 9s linear infinite;
+  }
+  .vinyl {
+    position: absolute;
+    inset: 18%;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 8px rgba(0, 0, 0, 0.25), inset 0 0 0 9px rgba(255, 255, 255, 0.06);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .cover-inner { position: relative; z-index: 2; display: grid; place-items: center; text-align: center; padding: 12px; }
+
+  .np-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--gold-2);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: rgba(212, 175, 55, 0.1);
+    border-radius: 999px;
+    padding: 5px 10px;
+  }
+  .np-badge .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 8px var(--gold);
+  }
+  .cover.spin ~ .np-info .np-badge .dot { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.25; } }
+
+  .np-title {
+    margin: 12px 0 6px;
+    font-size: clamp(20px, 3vw, 27px);
+    line-height: 1.25;
+    letter-spacing: -0.3px;
+  }
+  .np-sub { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  .law-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .chip:hover { color: var(--gold-2); border-color: rgba(212, 175, 55, 0.45); }
+  .chip[aria-pressed="true"] { color: #191508; background: var(--gold); border-color: transparent; }
+
+  /* progress */
+  .progress-wrap { margin-top: 20px; }
+  .seek {
+    position: relative;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    touch-action: none;
+  }
+  .seek-track {
+    position: relative;
+    height: 6px;
+    width: 100%;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+  }
+  .seek-buffer { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(255, 255, 255, 0.14); }
+  .seek-fill {
+    position: absolute; inset: 0 auto 0 0; width: 0;
+    background: linear-gradient(90deg, #a9861f, var(--gold-2));
+    border-radius: 999px;
+  }
+  .seek-knob {
+    position: absolute;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.25), 0 2px 8px rgba(0,0,0,.6);
+    transform: translate(-50%, 0);
+    left: 0;
+    pointer-events: none;
+  }
+  .times {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+
+  /* controls */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .ctrl {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.05);
+    display: grid; place-items: center;
+    font-size: 16px;
+    transition: background 0.15s, transform 0.08s;
+  }
+  .ctrl:hover { background: rgba(255, 255, 255, 0.11); }
+  .ctrl:active { transform: scale(0.93); }
+  .ctrl small { font-size: 9px; font-weight: 700; letter-spacing: 0.3px; }
+  .ctrl.play {
+    width: 62px; height: 62px;
+    font-size: 22px;
+    color: #17130a;
+    border: 0;
+    background: linear-gradient(140deg, var(--gold-2), var(--gold));
+    box-shadow: 0 14px 34px -14px rgba(212, 175, 55, 0.95);
+  }
+  .ctrl.play:hover { filter: brightness(1.06); }
+  .ctrl[disabled] { opacity: 0.35; cursor: not-allowed; }
+  .ctrl .stack { display: grid; place-items: center; line-height: 1; }
+
+  .extras {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .extra-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    padding: 8px 11px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--muted);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .pill:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+  .pill[aria-pressed="true"] {
+    color: var(--gold-2);
+    border-color: rgba(212, 175, 55, 0.5);
+    background: rgba(212, 175, 55, 0.12);
+  }
+  .pill b { color: var(--gold-2); font-variant-numeric: tabular-nums; }
+
+  .vol { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+  .vol input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 110px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    outline: none;
+  }
+  .vol input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: var(--gold-2);
+    cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+  }
+  .vol input[type="range"]::-moz-range-thumb {
+    width: 13px; height: 13px; border: 0;
+    border-radius: 50%; background: var(--gold-2); cursor: pointer;
+  }
+
+  /* details panel */
+  .detail { padding: 20px 22px; }
+  .detail h2 {
+    margin: 0 0 4px;
+    font-size: 15px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--gold-2);
+  }
+  .detail .lead { margin: 10px 0 0; font-size: 13.5px; line-height: 1.65; color: #d6d9e2; }
+  .detail .lead b { color: var(--text); }
+  .detail-grid { display: grid; gap: 12px; margin-top: 14px; }
+  .kv {
+    border: 1px solid var(--line);
+    border-left: 2px solid rgba(212, 175, 55, 0.55);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+  .kv h4 {
+    margin: 0 0 5px;
+    font-size: 10.5px;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    color: var(--muted-2);
+  }
+  .kv p { margin: 0; font-size: 13.5px; line-height: 1.65; color: #dbdee6; }
+
+  .detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .btn {
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); }
+  .btn.primary {
+    color: #17130a;
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--gold-2), var(--gold));
+  }
+  .btn.primary:hover { filter: brightness(1.06); }
+
+  footer {
+    margin-top: 26px;
+    text-align: center;
+    color: var(--muted-2);
+    font-size: 11.5px;
+    line-height: 1.8;
+  }
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px;
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--muted);
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 20px);
+    background: rgba(18, 21, 31, 0.97);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+    color: var(--text);
+    font-size: 12.5px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 50;
+    box-shadow: var(--shadow);
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------------------------------------------------------- responsive */
+  @media (max-width: 920px) {
+    .layout { grid-template-columns: 1fr; }
+    .library { position: static; max-height: none; order: 2; }
+    .main { order: 1; }
+    .list { max-height: 60vh; }
+    .player-top { grid-template-columns: 116px minmax(0, 1fr); gap: 16px; }
+    .cover .crown { font-size: 32px; }
+    .player { padding: 18px; }
+  }
+
+  @media (max-width: 560px) {
+    .wrap { padding: 12px 12px 30px; }
+    .topbar { padding: 12px; gap: 10px; }
+    .stats { display: none; }
+    .player-top { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    .cover { width: 132px; }
+    .law-chips, .np-info { justify-content: center; }
+    .np-sub { margin-bottom: 12px; }
+    .tabs { grid-template-columns: repeat(4, 1fr); }
+    .tab { font-size: 11px; }
+    .extras { justify-content: center; }
+    .ctrl { width: 40px; height: 40px; }
+    .ctrl.play { width: 56px; height: 56px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>👑 MonarchVoice</h1>
-      <p><strong>The 48 Laws of Power</strong> — Complete Easy Urdnglish Deep Storytelling Audiobook</p>
-    </header>
+<div class="wrap">
 
-    <div class="master-box">
-      <h2>🎧 Complete Master Audiobook (All 48 Laws + Preface + Finale — ~75 Mins)</h2>
-      <p style="color: var(--muted);">Single compiled non-stop audio file:</p>
-      <audio controls preload="none" src="The_48_Laws_of_Power_Master_Deep_Audiobook.mp3"></audio>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">👑</div>
+      <div>
+        <h1>MonarchVoice</h1>
+        <p>The 48 Laws of Power · Easy Urdnglish</p>
+      </div>
     </div>
+    <div class="spacer"></div>
+    <div class="stats" id="stats"></div>
+  </header>
 
-    <h2>📀 Volume-Wise Editions</h2>
-    <div class="grid">
-      <div class="card"><h3>Volume 1: Laws 1 to 10</h3><audio controls preload="none" src="Volume_1_Laws_01_to_10_Deep_Storytelling.mp3"></audio></div>
-      <div class="card"><h3>Volume 2: Laws 11 to 20</h3><audio controls preload="none" src="Volume_2_Laws_11_to_20_Deep_Storytelling.mp3"></audio></div>
-      <div class="card"><h3>Volume 3: Laws 21 to 30</h3><audio controls preload="none" src="Volume_3_Laws_21_to_30_Deep_Storytelling.mp3"></audio></div>
-      <div class="card"><h3>Volume 4: Laws 31 to 40</h3><audio controls preload="none" src="Volume_4_Laws_31_to_40_Deep_Storytelling.mp3"></audio></div>
-      <div class="card"><h3>Volume 5: Laws 41 to 48 + Finale</h3><audio controls preload="none" src="Volume_5_Laws_41_to_48_Deep_Storytelling.mp3"></audio></div>
-    </div>
+  <div class="layout">
+
+    <!-- ============================== LIBRARY ============================== -->
+    <aside class="panel library" aria-label="Audiobook library">
+      <div class="tabs" role="tablist" aria-label="Library sections">
+        <button class="tab" role="tab" data-tab="laws" aria-selected="true">48 Laws</button>
+        <button class="tab" role="tab" data-tab="volumes" aria-selected="false">Volumes</button>
+        <button class="tab" role="tab" data-tab="summary" aria-selected="false">Summary</button>
+        <button class="tab" role="tab" data-tab="master" aria-selected="false">Master</button>
+      </div>
+      <div class="search">
+        <label for="search" class="sr-only">Search laws and tracks</label>
+        <input id="search" type="search" placeholder="Search laws, titles, keywords…  ( / )" autocomplete="off" />
+      </div>
+      <div class="list" id="list" role="listbox" aria-label="Tracks"></div>
+    </aside>
+
+    <!-- =============================== MAIN =============================== -->
+    <main class="main">
+
+      <div class="resume" id="resume" hidden>
+        <span aria-hidden="true" style="font-size:20px">⏱️</span>
+        <div class="r-text">
+          <b id="resumeTitle">Continue</b>
+          <span id="resumeText"></span>
+        </div>
+        <button class="btn primary" id="resumeBtn">Resume</button>
+        <button class="icon-btn" id="resumeDismiss" aria-label="Dismiss resume suggestion">✕</button>
+      </div>
+
+      <section class="panel player" aria-label="Now playing">
+        <div class="player-top">
+          <div class="cover" id="cover" aria-hidden="true">
+            <div class="vinyl"></div>
+            <div class="cover-inner">
+              <div class="crown">👑</div>
+              <div class="cnum" id="coverLabel">MASTER</div>
+            </div>
+          </div>
+
+          <div class="np-info">
+            <span class="np-badge"><span class="dot"></span><span id="nowLabel">Now Playing</span></span>
+            <h2 class="np-title" id="npTitle">Complete Master Audiobook</h2>
+            <p class="np-sub" id="npSub">Preface + all 48 Laws + Grand Finale</p>
+            <div class="law-chips" id="chips"></div>
+          </div>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="seek" id="seek" role="slider" tabindex="0"
+               aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="0:00">
+            <div class="seek-track">
+              <div class="seek-buffer" id="seekBuffer"></div>
+              <div class="seek-fill" id="seekFill"></div>
+            </div>
+            <div class="seek-knob" id="seekKnob"></div>
+          </div>
+          <div class="times">
+            <span id="tCur">0:00</span>
+            <span id="tDur">0:00</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="ctrl" id="prevBtn" aria-label="Previous track" title="Previous (Shift + ←)">⏮</button>
+          <button class="ctrl" id="backBtn" aria-label="Back 15 seconds" title="Back 15s (←)">
+            <span class="stack">↺<small>15</small></span>
+          </button>
+          <button class="ctrl play" id="playBtn" aria-label="Play" title="Play / Pause (Space)">▶</button>
+          <button class="ctrl" id="fwdBtn" aria-label="Forward 30 seconds" title="Forward 30s (→)">
+            <span class="stack">↻<small>30</small></span>
+          </button>
+          <button class="ctrl" id="nextBtn" aria-label="Next track" title="Next (Shift + →)">⏭</button>
+        </div>
+
+        <div class="extras">
+          <div class="extra-group">
+            <button class="pill" id="speedBtn" title="Playback speed">⚡ <b id="speedLabel">1×</b></button>
+            <button class="pill" id="sleepBtn" title="Sleep timer">🌙 <b id="sleepLabel">Off</b></button>
+            <button class="pill" id="loopBtn" aria-pressed="false" title="Repeat current law">🔂 Repeat</button>
+            <button class="pill" id="autoplayBtn" aria-pressed="true" title="Play the next law automatically">➡️ Autoplay</button>
+          </div>
+          <div class="vol">
+            <button class="icon-btn" id="muteBtn" aria-label="Mute" title="Mute (M)" style="width:34px;height:34px;font-size:13px">🔊</button>
+            <label for="volRange" class="sr-only">Volume</label>
+            <input id="volRange" type="range" min="0" max="1" step="0.01" value="0.9" />
+          </div>
+        </div>
+      </section>
+
+      <section class="panel detail" id="detail" aria-live="polite">
+        <h2 id="detailHeading">Law details</h2>
+        <p class="lead" id="detailLead"></p>
+        <div class="detail-grid" id="detailGrid"></div>
+        <div class="detail-actions" id="detailActions"></div>
+      </section>
+
+      <footer>
+        <div>Made with 👑 for late-night learners · Easy Urdnglish edition</div>
+        <div style="margin-top:6px">
+          <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> ±15s/30s ·
+          <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> prev/next · <kbd>↑</kbd>/<kbd>↓</kbd> volume ·
+          <kbd>M</kbd> mute · <kbd>/</kbd> search
+        </div>
+      </footer>
+
+    </main>
   </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<audio id="audio" preload="metadata"></audio>
+<script src="library.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* =====================================================================
+     Data
+     ===================================================================== */
+  const LIB = window.MONARCH_LIBRARY;
+  if (!LIB) {
+    document.body.innerHTML =
+      '<div style="padding:40px;font-family:system-ui;color:#f4f5f7;background:#08090d;min-height:100vh">' +
+      '<h1 style="color:#d4af37">library.js is missing</h1>' +
+      "<p>Run <code>python3 build_library.py</code> in this folder, then reload.</p></div>";
+    return;
+  }
+
+  const TRACKS = LIB.tracks;
+  const LAWS = LIB.laws;
+  const trackById = Object.fromEntries(TRACKS.map((t) => [t.id, t]));
+  const lawByNum = Object.fromEntries(LAWS.map((l) => [l.number, l]));
+  const episodes = TRACKS.filter((t) => ["preface", "episode", "finale"].includes(t.kind));
+
+  // The master file is a header-stripped concatenation of the episodes, so we
+  // can map a position inside it back to the law that is currently speaking.
+  const MASTER = TRACKS.find((t) => t.kind === "master");
+  const MASTER_TIMELINE = (() => {
+    let cursor = 0;
+    const total = episodes.reduce((sum, t) => sum + t.duration, 0) || 1;
+    const scale = MASTER && MASTER.duration ? MASTER.duration / total : 1;
+    return episodes.map((t) => {
+      const start = cursor * scale;
+      cursor += t.duration;
+      return { id: t.id, law: t.law, start, end: cursor * scale, title: t.title };
+    });
+  })();
+
+  function masterCurrent(seconds) {
+    if (!MASTER_TIMELINE.length) return null;
+    const t = Math.max(0, seconds || 0);
+    let lo = 0, hi = MASTER_TIMELINE.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (MASTER_TIMELINE[mid].start <= t) lo = mid; else hi = mid - 1;
+    }
+    return MASTER_TIMELINE[lo];
+  }
+
+  const STORE = {
+    get(key, fallback) {
+      try {
+        const raw = localStorage.getItem("mv:" + key);
+        return raw === null ? fallback : JSON.parse(raw);
+      } catch (e) {
+        return fallback;
+      }
+    },
+    set(key, value) {
+      try { localStorage.setItem("mv:" + key, JSON.stringify(value)); } catch (e) {}
+    },
+  };
+
+  /* =====================================================================
+     Elements
+     ===================================================================== */
+  const $ = (sel) => document.querySelector(sel);
+  const audio = $("#audio");
+  const listEl = $("#list");
+  const statsEl = $("#stats");
+  const searchEl = $("#search");
+  const coverEl = $("#cover");
+  const coverLabel = $("#coverLabel");
+  const npTitle = $("#npTitle");
+  const npSub = $("#npSub");
+  const nowLabel = $("#nowLabel");
+  const chipsEl = $("#chips");
+  const seekEl = $("#seek");
+  const seekFill = $("#seekFill");
+  const seekBuffer = $("#seekBuffer");
+  const seekKnob = $("#seekKnob");
+  const tCur = $("#tCur");
+  const tDur = $("#tDur");
+  const playBtn = $("#playBtn");
+  const prevBtn = $("#prevBtn");
+  const nextBtn = $("#nextBtn");
+  const speedBtn = $("#speedBtn");
+  const speedLabel = $("#speedLabel");
+  const sleepBtn = $("#sleepBtn");
+  const sleepLabel = $("#sleepLabel");
+  const loopBtn = $("#loopBtn");
+  const autoplayBtn = $("#autoplayBtn");
+  const muteBtn = $("#muteBtn");
+  const volRange = $("#volRange");
+  const toastEl = $("#toast");
+  const detailHeading = $("#detailHeading");
+  const detailLead = $("#detailLead");
+  const detailGrid = $("#detailGrid");
+  const detailActions = $("#detailActions");
+  const resumeEl = $("#resume");
+  const resumeTitle = $("#resumeTitle");
+  const resumeText = $("#resumeText");
+
+  /* =====================================================================
+     State
+     ===================================================================== */
+  const state = {
+    tab: "laws",
+    query: "",
+    currentId: null,
+    order: [],        // ids in the visible list — drives prev/next
+    volume: STORE.get("volume", 0.9),
+    muted: STORE.get("muted", false),
+    rate: STORE.get("rate", 1),
+    loop: STORE.get("loop", false),
+    autoplay: STORE.get("autoplay", true),
+    listened: new Set(STORE.get("listened", [])),
+    sleepEndsAt: null,
+    sleepMinutes: 0,
+    scrubbing: false,
+    duration: 0,
+  };
+
+  /* =====================================================================
+     Utils
+     ===================================================================== */
+  function fmt(seconds) {
+    if (!isFinite(seconds) || seconds < 0) seconds = 0;
+    seconds = Math.floor(seconds);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+             : `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function fmtLong(seconds) {
+    const mins = Math.round(seconds / 60);
+    if (mins < 60) return `${mins} min`;
+    return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, "0")}m`;
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+  }
+
+  /* =====================================================================
+     Header stats
+     ===================================================================== */
+  (function renderStats() {
+    const deepMinutes = episodes.reduce((sum, t) => sum + t.duration, 0) / 60;
+    const items = [
+      `<b>${LAWS.length}</b> laws`,
+      `<b>${episodes.length}</b> episodes`,
+      `<b>${fmtLong(deepMinutes * 60)}</b> deep audio`,
+      `<b>${TRACKS.length}</b> tracks total`,
+    ];
+    statsEl.innerHTML = items.map((i) => `<span class="stat">${i}</span>`).join("");
+  })();
+
+  /* =====================================================================
+     Library list
+     ===================================================================== */
+  function itemsForTab(tab) {
+    if (tab === "laws") {
+      return episodes.map((t) => ({
+        id: t.id,
+        num: t.law === 0 ? "00" : t.law === 49 ? "★" : String(t.law).padStart(2, "0"),
+        title: t.law === 0 ? "Preface: Book Introduction"
+             : t.law === 49 ? "Grand Finale: Master Takeaways"
+             : `Law ${t.law}: ${t.title}`,
+        sub: t.subtitle,
+        time: t.duration,
+        law: t.law,
+        search: `${t.law} ${t.title} ${t.subtitle} ${(lawByNum[t.law] || {}).explanation || ""}`.toLowerCase(),
+      }));
+    }
+    if (tab === "volumes") {
+      return TRACKS.filter((t) => t.kind === "volume").map((t) => ({
+        id: t.id,
+        num: "V" + t.id.split("-")[1],
+        title: t.title,
+        sub: t.subtitle,
+        time: t.duration,
+        search: `${t.title} ${t.subtitle}`.toLowerCase(),
+      }));
+    }
+    if (tab === "summary") {
+      return TRACKS.filter((t) => t.kind === "part").map((t) => ({
+        id: t.id,
+        num: "P" + String(parseInt(t.id.split("-")[1], 10)).padStart(2, "0"),
+        title: t.title,
+        sub: t.subtitle,
+        time: t.duration,
+        search: `${t.title} ${t.subtitle}`.toLowerCase(),
+      }));
+    }
+    return TRACKS.filter((t) => t.kind === "master").map((t) => ({
+      id: t.id,
+      num: "★",
+      title: t.title,
+      sub: t.subtitle,
+      time: t.duration,
+      search: `${t.title} ${t.subtitle}`.toLowerCase(),
+    }));
+  }
+
+  function matches(item) {
+    if (!state.query) return true;
+    return state.query.split(/\s+/).filter(Boolean).every((word) => item.search.includes(word));
+  }
+
+  function renderList() {
+    const all = itemsForTab(state.tab);
+    const items = all.filter(matches);
+    state.order = items.map((i) => i.id);
+
+    if (!items.length) {
+      listEl.innerHTML = '<div class="empty">Koi track nahi mila — try another keyword.</div>';
+      return;
+    }
+
+    listEl.innerHTML = items.map((item) => {
+      const track = trackById[item.id];
+      const done = track && item.law != null && state.listened.has(item.law);
+      const active = state.currentId === item.id;
+      return `<button class="row" role="option" data-id="${item.id}" data-active="${active}" aria-selected="${active}">
+        <span class="row-num">${item.num}</span>
+        <span class="row-main">
+          <span class="row-title">${escapeHtml(item.title)}</span>
+          <span class="row-sub">${escapeHtml(item.sub || "")}</span>
+        </span>
+        <span class="row-meta">
+          ${done ? '<span class="check" title="Listened">✓</span>' : ""}
+          <span class="row-time">${fmt(item.time)}</span>
+        </span>
+      </button>`;
+    }).join("");
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  listEl.addEventListener("click", (ev) => {
+    const row = ev.target.closest(".row");
+    if (!row) return;
+    loadTrack(row.dataset.id, { autoplay: true });
+  });
+
+  /* tabs */
+  function setTab(tab) {
+    state.tab = tab;
+    document.querySelectorAll(".tab").forEach((t) =>
+      t.setAttribute("aria-selected", String(t.dataset.tab === tab)));
+  }
+
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      setTab(tab.dataset.tab);
+      renderList();
+    });
+  });
+
+  const TAB_FOR_KIND = { master: "master", volume: "volumes", part: "summary", episode: "laws", preface: "laws", finale: "laws" };
+
+  searchEl.addEventListener("input", () => {
+    state.query = searchEl.value.trim().toLowerCase();
+    renderList();
+  });
+
+  /* =====================================================================
+     Player core
+     ===================================================================== */
+  function loadTrack(id, opts) {
+    const track = trackById[id];
+    if (!track) return;
+    opts = opts || {};
+
+    tripSleepCheck();
+
+    state.currentId = id;
+    const isNew = audio.dataset.track !== id;
+    if (isNew) {
+      audio.dataset.track = id;
+      audio.src = encodeURI(track.src);
+      audio.load();
+      state.duration = track.duration || 0;
+    }
+
+    if (opts.position) {
+      pendingSeek = opts.position;
+    }
+
+    // Keep the sidebar in sync with whatever is playing, so the highlighted
+    // row is always visible and prev/next walk the right list.
+    const wantedTab = TAB_FOR_KIND[track.kind] || "laws";
+    const tabChanged = state.tab !== wantedTab;
+    if (tabChanged) setTab(wantedTab);
+
+    renderNowPlaying(track);
+    renderList();
+    renderDetail(track);
+    updateResumeBanner();
+
+    if (tabChanged) {
+      const active = listEl.querySelector('.row[data-active="true"]');
+      if (active && typeof active.scrollIntoView === "function") {
+        active.scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    STORE.set("last", {
+      id,
+      position: opts.position || 0,
+      at: Date.now(),
+    });
+
+    if (opts.autoplay !== false) {
+      playAudio();
+    }
+  }
+
+  let pendingSeek = null;
+
+  function playAudio() {
+    const p = audio.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(() => {
+        // Browsers require a gesture before audio starts; UI still reflects intent.
+        setPlayIcon(false);
+      });
+    }
+  }
+
+  function setPlayIcon(isPlaying) {
+    playBtn.textContent = isPlaying ? "⏸" : "▶";
+    playBtn.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
+    coverEl.classList.toggle("spin", isPlaying);
+  }
+
+  function renderNowPlaying(track) {
+    npTitle.textContent = track.title;
+    npSub.textContent = track.subtitle || "";
+
+    const kindLabel = {
+      master: "Master edition",
+      preface: "Preface",
+      episode: track.law ? `Law ${track.law} of 48` : "Law episode",
+      finale: "Grand finale",
+      volume: "Volume edition",
+      part: "Quick summary",
+    }[track.kind] || "Now playing";
+
+    nowLabel.textContent = kindLabel;
+
+    if (track.kind === "master") coverLabel.textContent = "MASTER";
+    else if (track.kind === "preface") coverLabel.textContent = "PREFACE";
+    else if (track.kind === "finale") coverLabel.textContent = "FINALE";
+    else if (track.kind === "volume") coverLabel.textContent = "VOL " + track.id.split("-")[1];
+    else if (track.kind === "part") coverLabel.textContent = "PART " + parseInt(track.id.split("-")[1], 10);
+    else coverLabel.textContent = "LAW " + String(track.law).padStart(2, "0");
+
+    renderChips(track);
+    updatePlaybackUI();
+  }
+
+  function renderChips(track) {
+    let nums = [];
+    if (track.kind === "episode") nums = [track.law];
+    else if (track.laws) nums = track.laws;
+
+    if (!nums.length || track.kind === "master") {
+      chipsEl.innerHTML = '<span class="chip" style="cursor:default">48 laws · one continuous listen</span>';
+      return;
+    }
+
+    // Cap chip count so the header stays readable; volumes/parts list their laws.
+    chipsEl.innerHTML = nums.slice(0, 12).map((n) => {
+      if (n === 0) return "";
+      const law = lawByNum[n];
+      if (!law) return "";
+      return `<button class="chip" data-law="${n}" title="${escapeHtml(law.title)}">Law ${n}</button>`;
+    }).join("") + (nums.length > 12 ? `<span class="chip" style="cursor:default">+${nums.length - 12}</span>` : "");
+  }
+
+  chipsEl.addEventListener("click", (ev) => {
+    const chip = ev.target.closest("[data-law]");
+    if (!chip) return;
+    const law = lawByNum[chip.dataset.law];
+    if (law && law.track) loadTrack(law.track, { autoplay: true });
+  });
+
+  /* =====================================================================
+     Detail panel
+     ===================================================================== */
+  function renderDetail(track) {
+    const law = track.law != null && lawByNum[track.law] ? lawByNum[track.law] : null;
+
+    if (track.kind === "episode" && law) {
+      detailHeading.textContent = `Law ${law.number} — ${law.title}`;
+      detailLead.textContent = "";
+      detailGrid.innerHTML = `
+        <div class="kv"><h4>Easy Meaning</h4><p>${escapeHtml(law.meaning)}</p></div>
+        <div class="kv"><h4>Explanation</h4><p>${escapeHtml(law.explanation)}</p></div>`;
+      detailActions.innerHTML = `
+        <button class="btn primary" id="actionPlay">${isCurrentPlaying() ? "⏸ Pause" : "▶ Play this law"}</button>
+        <button class="btn" id="actionDone">${state.listened.has(law.number) ? "✓ Listened" : "Mark as listened"}</button>
+        ${law.number > 1 ? `<button class="btn" id="actionPrevLaw">← Law ${law.number - 1}</button>` : ""}
+        ${law.number < 48 ? `<button class="btn" id="actionNextLaw">Law ${law.number + 1} →</button>` : ""}`;
+      wireDetailActions(law);
+      return;
+    }
+
+    if (track.kind === "preface") {
+      detailHeading.textContent = "Preface — Why Power Matters";
+      detailLead.textContent =
+        "This opening episode sets the tone: power is a social game, not a dirty word. " +
+        "Greene explains that appearances, timing, and emotional control decide who rises. " +
+        "Listen to this first if you are new to the book — it makes every law feel connected.";
+      detailGrid.innerHTML = "";
+      detailActions.innerHTML = `<button class="btn primary" id="actionNextLaw">Start with Law 1 →</button>`;
+      $("#actionNextLaw").onclick = () => loadLaw(1);
+      return;
+    }
+
+    if (track.kind === "finale") {
+      detailHeading.textContent = "Grand Finale — Master Takeaways";
+      detailLead.textContent =
+        "All 48 laws compressed into one closing episode: the five golden rules, " +
+        "how to read people, and how to stay formless in a world that keeps changing.";
+      detailGrid.innerHTML = "";
+      detailActions.innerHTML = `<button class="btn" id="actionMaster">🎧 Play the full master audiobook</button>`;
+      $("#actionMaster").onclick = () => loadTrack("master", { autoplay: true });
+      return;
+    }
+
+    if (track.kind === "master") {
+      detailHeading.textContent = "Complete Master Audiobook";
+      workLead(track);
+      detailGrid.innerHTML = `
+        <div class="kv"><h4>You are here</h4><p id="masterNow">Press play — the law being narrated will appear here.</p></div>
+        <div class="kv"><h4>What's inside</h4><p>Preface → Laws 1–48 → Grand Finale, rendered as one seamless ~68 minute MP3. Great for a single long listen, a commute, or background study.</p></div>
+        <div class="kv"><h4>Prefer bite-sized?</h4><p>Open the <b>48 Laws</b> tab for individual ~80 second episodes, or <b>Volumes</b> for 10-law blocks.</p></div>`;
+      detailActions.innerHTML = `<button class="btn" id="actionLaws">📚 Browse individual laws</button>`;
+      $("#actionLaws").onclick = () => switchTab("laws");
+      return;
+    }
+
+    // volume / part
+    detailHeading.textContent = track.title;
+    workLead(track);
+    const nums = track.laws || [];
+    detailGrid.innerHTML = `
+      <div class="kv"><h4>Laws in this ${track.kind}</h4><p>${nums.map((n) => (lawByNum[n] ? `Law ${n}: ${escapeHtml(lawByNum[n].title)}` : "")).filter(Boolean).join(" · ")}</p></div>`;
+    detailActions.innerHTML = `<button class="btn" id="actionLaws">Listen law by law →</button>`;
+    $("#actionLaws").onclick = () => switchTab("laws");
+  }
+
+  function workLead(track) {
+    detailLead.textContent =
+      `${track.title} — ${fmtLong(track.duration || state.duration)} of Easy Urdnglish storytelling. ` +
+      "Har law ko real historical stories, human psychology aur practical life examples ke saath samjhaya gaya hai.";
+  }
+
+  function wireDetailActions(law) {
+    const play = $("#actionPlay");
+    if (play) play.onclick = () => {
+      if (state.currentId === law.track) togglePlay();
+      else loadLaw(law.number);
+    };
+    const done = $("#actionDone");
+    if (done) done.onclick = () => {
+      if (state.listened.has(law.number)) state.listened.delete(law.number);
+      else state.listened.add(law.number);
+      STORE.set("listened", [...state.listened]);
+      renderList();
+      renderDetail(trackById[state.currentId] || trackById[law.track]);
+      toast(state.listened.has(law.number) ? `Law ${law.number} marked as listened ✓` : `Law ${law.number} unmarked`);
+    };
+    const p = $("#actionPrevLaw");
+    if (p) p.onclick = () => loadLaw(law.number - 1);
+    const n = $("#actionNextLaw");
+    if (n) n.onclick = () => loadLaw(law.number + 1);
+  }
+
+  function loadLaw(num) {
+    const law = lawByNum[num];
+    if (law && law.track) loadTrack(law.track, { autoplay: true });
+  }
+
+  function switchTab(tab) {
+    setTab(tab);
+    renderList();
+    const lib = document.querySelector(".library");
+    if (lib && typeof lib.scrollIntoView === "function") {
+      lib.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  function isCurrentPlaying() {
+    return state.currentId === audio.dataset.track && !audio.paused;
+  }
+
+  /* =====================================================================
+     Playback UI
+     ===================================================================== */
+  function updatePlaybackUI() {
+    const dur = state.duration || audio.duration || 0;
+    const cur = audio.currentTime || 0;
+    const pct = dur ? Math.min(100, (cur / dur) * 100) : 0;
+
+    seekFill.style.width = pct + "%";
+    seekKnob.style.left = pct + "%";
+    tCur.textContent = fmt(cur);
+    tDur.textContent = fmt(dur);
+    seekEl.setAttribute("aria-valuenow", String(Math.round(pct)));
+    seekEl.setAttribute("aria-valuetext", `${fmt(cur)} of ${fmt(dur)}`);
+
+    if (dur && audio.buffered && audio.buffered.length) {
+      try {
+        seekBuffer.style.width =
+          Math.min(100, (audio.buffered.end(audio.buffered.length - 1) / dur) * 100) + "%";
+      } catch (e) {}
+    }
+
+    updateMasterPosition(cur);
+
+    document.title = isCurrentPlaying()
+      ? `▶ ${npTitle.textContent} · MonarchVoice`
+      : "MonarchVoice — The 48 Laws of Power (Easy Urdnglish Audiobook)";
+  }
+
+  let lastMasterKey = null;
+  function updateMasterPosition(seconds) {
+    const track = trackById[state.currentId];
+    if (!track || track.kind !== "master") { lastMasterKey = null; return; }
+
+    const point = masterCurrent(seconds);
+    if (!point) return;
+
+    const key = point.id;
+    if (key === lastMasterKey) return;
+    lastMasterKey = key;
+
+    const law = point.law != null ? lawByNum[point.law] : null;
+    const at = $("#masterNow");
+    if (at) {
+      at.innerHTML = law
+        ? `<b>Law ${law.number} — ${escapeHtml(law.title)}</b><br>${escapeHtml(law.meaning)}`
+        : `<b>${escapeHtml(point.title)}</b>`;
+    }
+
+    if (point.law != null && point.law >= 1 && point.law <= 48) {
+      nowLabel.textContent = `Master · Law ${point.law}`;
+      coverLabel.textContent = "LAW " + String(point.law).padStart(2, "0");
+    }
+  }
+
+  function togglePlay() {
+    if (!state.currentId) {
+      loadTrack("law-01", { autoplay: true });
+      return;
+    }
+    if (audio.paused) playAudio();
+    else audio.pause();
+  }
+
+  function seekBy(delta) {
+    if (!state.duration) return;
+    audio.currentTime = Math.max(0, Math.min(state.duration, audio.currentTime + delta));
+    updatePlaybackUI();
+  }
+
+  function step(dir) {
+    // 1. Follow the visible list, so "next" respects the current tab + search.
+    // 2. If we are not in it (e.g. jumped here from a chip) or hit its edge,
+    //    fall back to the full ordering of the current tab instead of stopping.
+    const visible = state.order.length ? state.order : [];
+    const full = itemsForTab(state.tab).map((i) => i.id);
+
+    let order = visible;
+    let idx = order.indexOf(state.currentId);
+
+    if (idx === -1 || (idx + dir < 0) || (idx + dir >= order.length)) {
+      order = full;
+      idx = order.indexOf(state.currentId);
+      if (idx === -1) idx = dir > 0 ? -1 : 0;
+    }
+
+    const nextId = order[idx + dir];
+    if (!nextId) {
+      toast(dir > 0 ? "That's the last track 👑" : "That's the first track");
+      return;
+    }
+    loadTrack(nextId, { autoplay: true });
+  }
+
+  prevBtn.onclick = () => {
+    if (audio.currentTime > 4) { audio.currentTime = 0; return; }
+    step(-1);
+  };
+  nextBtn.onclick = () => step(1);
+  $("#backBtn").onclick = () => seekBy(-15);
+  $("#fwdBtn").onclick = () => seekBy(30);
+  playBtn.onclick = togglePlay;
+
+  /* ---- speed ---------------------------------------------------------- */
+  const SPEEDS = [0.75, 0.9, 1, 1.15, 1.25, 1.5, 1.75, 2];
+  function applyRate(rate, announce) {
+    state.rate = rate;
+    audio.playbackRate = rate;
+    speedLabel.textContent = (Number.isInteger(rate) ? rate : rate.toFixed(2).replace(/0$/, "")) + "×";
+    speedBtn.setAttribute("aria-pressed", String(rate !== 1));
+    STORE.set("rate", rate);
+    if (announce) toast(`Speed: ${speedLabel.textContent}`);
+  }
+  speedBtn.onclick = () => {
+    const i = SPEEDS.indexOf(state.rate);
+    // insert 1.25 / 0.9 oddities aside: keep simple cycle
+    applyRate(SPEEDS[(i + 1) % SPEEDS.length], true);
+  };
+
+  /* ---- volume --------------------------------------------------------- */
+  function applyVolume(v, announce) {
+    state.volume = v;
+    audio.volume = state.muted ? 0 : v;
+    volRange.value = String(v);
+    muteBtn.textContent = state.muted || v === 0 ? "🔇" : v < 0.5 ? "🔉" : "🔊";
+    muteBtn.setAttribute("aria-pressed", String(state.muted || v === 0));
+    STORE.set("volume", v);
+    if (announce) toast(`Volume ${Math.round(v * 100)}%`);
+  }
+  volRange.addEventListener("input", () => {
+    state.muted = false;
+    STORE.set("muted", false);
+    applyVolume(parseFloat(volRange.value));
+  });
+  muteBtn.onclick = () => {
+    state.muted = !state.muted;
+    STORE.set("muted", state.muted);
+    applyVolume(state.volume, true);
+    if (!state.muted && audio.volume === 0) applyVolume(Math.max(0.2, state.volume));
+  };
+
+  /* ---- loop / autoplay ------------------------------------------------ */
+  function applyLoop(on) {
+    state.loop = on;
+    audio.loop = false; // handled on "ended" so listened-marking still runs
+    loopBtn.setAttribute("aria-pressed", String(on));
+    STORE.set("loop", on);
+  }
+  loopBtn.onclick = () => { applyLoop(!state.loop); toast(state.loop ? "Repeat law: on" : "Repeat law: off"); };
+
+  function applyAutoplay(on) {
+    state.autoplay = on;
+    autoplayBtn.setAttribute("aria-pressed", String(on));
+    STORE.set("autoplay", on);
+  }
+  autoplayBtn.onclick = () => { applyAutoplay(!state.autoplay); toast(state.autoplay ? "Autoplay next: on" : "Autoplay next: off"); };
+
+  /* ---- sleep timer ---------------------------------------------------- */
+  function setSleep(minutes) {
+    state.sleepMinutes = minutes;
+    state.sleepEndsAt = minutes ? Date.now() + minutes * 60000 : null;
+    STORE.set("sleep", minutes);
+    sleepBtn.setAttribute("aria-pressed", String(!!minutes));
+    updateSleepLabel();
+    toast(minutes ? `Sleep timer: ${minutes} min 🌙` : "Sleep timer off");
+  }
+
+  function updateSleepLabel() {
+    if (!state.sleepEndsAt) { sleepLabel.textContent = "Off"; return; }
+    const left = Math.max(0, state.sleepEndsAt - Date.now());
+    sleepLabel.textContent = fmt(left / 1000);
+  }
+
+  const SLEEP_STEPS = [0, 5, 10, 15, 30, 45, 60];
+  sleepBtn.onclick = () => {
+    const i = SLEEP_STEPS.indexOf(state.sleepMinutes);
+    setSleep(SLEEP_STEPS[(i + 1) % SLEEP_STEPS.length]);
+  };
+
+  let sleepTicker = null;
+  function tripSleepCheck() {
+    if (state.sleepEndsAt) {
+      sleepTicker = setInterval(() => {
+        if (!state.sleepEndsAt) { clearInterval(sleepTicker); sleepTicker = null; return; }
+        updateSleepLabel();
+        if (Date.now() >= state.sleepEndsAt) {
+          audio.pause();
+          state.sleepEndsAt = null;
+          state.sleepMinutes = 0;
+          STORE.set("sleep", 0);
+          sleepBtn.setAttribute("aria-pressed", "false");
+          updateSleepLabel();
+          clearInterval(sleepTicker);
+          sleepTicker = null;
+          toast("Sleep timer finished — good night 🌙");
+        }
+      }, 1000);
+    }
+  }
+
+  /* =====================================================================
+     Seek interaction
+     ===================================================================== */
+  function seekFromEvent(ev) {
+    const rect = seekEl.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+    const dur = state.duration || audio.duration || 0;
+    if (!dur) return;
+    audio.currentTime = ratio * dur;
+    seekFill.style.width = ratio * 100 + "%";
+    seekKnob.style.left = ratio * 100 + "%";
+    tCur.textContent = fmt(audio.currentTime);
+    seekEl.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
+  }
+
+  seekEl.addEventListener("pointerdown", (ev) => {
+    state.scrubbing = true;
+    seekEl.setPointerCapture(ev.pointerId);
+    seekFromEvent(ev);
+  });
+  seekEl.addEventListener("pointermove", (ev) => {
+    if (state.scrubbing) seekFromEvent(ev);
+  });
+  seekEl.addEventListener("pointerup", (ev) => {
+    state.scrubbing = false;
+    try { seekEl.releasePointerCapture(ev.pointerId); } catch (e) {}
+  });
+  seekEl.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowRight") { ev.preventDefault(); seekBy(15); }
+    else if (ev.key === "ArrowLeft") { ev.preventDefault(); seekBy(-15); }
+  });
+
+  /* =====================================================================
+     Audio events
+     ===================================================================== */
+  audio.addEventListener("loadedmetadata", () => {
+    if (isFinite(audio.duration) && audio.duration > 0) state.duration = audio.duration;
+    if (pendingSeek != null) {
+      try { audio.currentTime = Math.min(pendingSeek, Math.max(0, state.duration - 1)); } catch (e) {}
+      pendingSeek = null;
+    }
+    updatePlaybackUI();
+  });
+  audio.addEventListener("timeupdate", () => {
+    if (!state.scrubbing) updatePlaybackUI();
+    if (Math.floor(audio.currentTime) % 5 === 0) savePosition();
+  });
+  audio.addEventListener("progress", updatePlaybackUI);
+  audio.addEventListener("play", () => { setPlayIcon(true); updatePlaybackUI(); });
+  audio.addEventListener("pause", () => { setPlayIcon(false); updatePlaybackUI(); savePosition(); });
+  audio.addEventListener("waiting", () => setPlayIcon(false));
+  audio.addEventListener("playing", () => setPlayIcon(true));
+  audio.addEventListener("error", () => {
+    setPlayIcon(false);
+    toast("Audio load nahi hui — check file path / network.");
+  });
+  audio.addEventListener("ended", () => {
+    const track = trackById[state.currentId];
+    if (track) {
+      if (track.law != null) {
+        state.listened.add(track.law);
+        STORE.set("listened", [...state.listened]);
+        renderList();
+      }
+    }
+    if (state.loop) {
+      audio.currentTime = 0;
+      playAudio();
+      return;
+    }
+    savePosition(0);
+    if (state.autoplay) step(1);
+  });
+  audio.addEventListener("ratechange", () => { audio.playbackRate = state.rate; });
+
+  function savePosition(forced) {
+    if (!state.currentId) return;
+    STORE.set("last", {
+      id: state.currentId,
+      position: forced != null ? forced : audio.currentTime || 0,
+      at: Date.now(),
+    });
+  }
+
+  /* =====================================================================
+     Resume banner
+     ===================================================================== */
+  function updateResumeBanner() {
+    const last = STORE.get("last", null);
+    if (!last || !trackById[last.id]) { resumeEl.hidden = true; return; }
+    if (last.id === state.currentId) { resumeEl.hidden = true; return; }
+    const track = trackById[last.id];
+    resumeTitle.textContent = "Continue where you left off";
+    resumeText.textContent = `${track.title} · ${fmt(last.position)} of ${fmt(track.duration)}`;
+    resumeEl.hidden = false;
+    $("#resumeBtn").onclick = () => {
+      resumeEl.hidden = true;
+      loadTrack(last.id, { autoplay: true, position: last.position });
+    };
+    $("#resumeDismiss").onclick = () => { resumeEl.hidden = true; };
+  }
+
+  /* =====================================================================
+     Keyboard shortcuts
+     ===================================================================== */
+  document.addEventListener("keydown", (ev) => {
+    const tag = (ev.target.tagName || "").toLowerCase();
+    const typing = tag === "input" || tag === "textarea" || ev.target.isContentEditable;
+
+    if (ev.key === "/" && !typing) {
+      ev.preventDefault();
+      searchEl.focus();
+      searchEl.select();
+      return;
+    }
+    if (ev.key === "Escape" && typing) {
+      searchEl.value = "";
+      state.query = "";
+      renderList();
+      searchEl.blur();
+      return;
+    }
+    if (typing) return;
+
+    switch (ev.key) {
+      case " ":
+      case "k":
+        ev.preventDefault(); togglePlay(); break;
+      case "ArrowRight":
+        ev.preventDefault();
+        if (ev.shiftKey) step(1); else seekBy(30);
+        break;
+      case "ArrowLeft":
+        ev.preventDefault();
+        if (ev.shiftKey) step(-1); else seekBy(-15);
+        break;
+      case "ArrowUp":
+        ev.preventDefault(); applyVolume(Math.min(1, state.volume + 0.05), true); break;
+      case "ArrowDown":
+        ev.preventDefault(); applyVolume(Math.max(0, state.volume - 0.05), true); break;
+      case "m":
+        muteBtn.click(); break;
+      case "n":
+        step(1); break;
+      case "p":
+        step(-1); break;
+      case "j":
+        seekBy(-15); break;
+      case "l":
+        seekBy(30); break;
+      case "?":
+        toast("Space play · ←/→ seek · Shift+←/→ prev/next · M mute");
+        break;
+      default:
+    }
+  });
+
+  /* =====================================================================
+     Boot
+     ===================================================================== */
+  function boot() {
+    applyVolume(state.volume, false);
+    applyRate(state.rate, false);
+    applyLoop(state.loop);
+    applyAutoplay(state.autoplay);
+
+    const savedSleep = STORE.get("sleep", 0);
+    if (savedSleep) {
+      state.sleepMinutes = savedSleep;
+      state.sleepEndsAt = Date.now() + savedSleep * 60000;
+      updateSleepLabel();
+    }
+
+    const last = STORE.get("last", null);
+    const startId = last && trackById[last.id] ? last.id : "master";
+    state.currentId = startId;
+    audio.dataset.track = startId;
+    audio.src = encodeURI(trackById[startId].src);
+    state.duration = trackById[startId].duration;
+    audio.volume = state.muted ? 0 : state.volume;
+
+    renderList();
+    renderNowPlaying(trackById[startId]);
+    renderDetail(trackById[startId]);
+    updateResumeBanner();
+    setPlayIcon(false);
+
+    if (last) {
+      const track = trackById[last.id];
+      resumeTitle.textContent = "Continue where you left off";
+      resumeText.textContent = `${track.title} · ${fmt(last.position)} of ${fmt(track.duration)}`;
+      resumeEl.hidden = false;
+      $("#resumeBtn").onclick = () => {
+        resumeEl.hidden = true;
+        loadTrack(last.id, { autoplay: true, position: last.position });
+      };
+      $("#resumeDismiss").onclick = () => { resumeEl.hidden = true; };
+    }
+
+    window.addEventListener("beforeunload", () => savePosition());
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) savePosition();
+    });
+  }
+
+  boot();
+})();
+</script>
 </body>
 </html>

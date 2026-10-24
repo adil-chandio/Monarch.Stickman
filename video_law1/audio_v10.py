@@ -49,7 +49,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
 
 CONFIG = dict(
-    MUSIC_UNDER_VOICE_DB=3.0,   # music RMS under voice RMS (ducked on top)
+    MUSIC_UNDER_VOICE_DB=float(os.environ.get("MUSIC_UNDER", "8.0")),  # music RMS under voice RMS
     ACCENT_PEAK=-9.0,
     KEY_PEAK=-15.0,             # typing is an accent, not a layer
     DUCK_MUSIC=0.34,            # how far the voice pushes the score down
@@ -222,12 +222,39 @@ def master(mix: np.ndarray) -> np.ndarray:
     return mix.astype(np.float32)
 
 
+def check_voice_clips(tol=0.06):
+    """audio_v4/ is gitignored, so it gets rebuilt from the raw mp3s by mistake.
+
+    A raw mp3 is *longer* than its scene slot; placed at b["start"] it runs over
+    the next scene's narration -> two voices at once, and the slots that clip
+    does not reach stay silent -> holes. Both were reported by the user
+    ("voice over ke upper voice over", "bilawaja gap"). tighten.py is the only
+    correct producer: it trims + squeezes and rewrites timeline_v4.py.
+    """
+    import soundfile as sf
+    bad = []
+    for b in BEATS:
+        info = sf.info(b["audio"])
+        d = info.frames / info.samplerate
+        if abs(d - float(b["dur"])) > tol:
+            bad.append((b["n"], round(d, 2), round(float(b["dur"]), 2)))
+    if bad:
+        raise SystemExit(
+            "audio_v4 does not match timeline_v4 (clip vs slot, seconds):\n  "
+            + "\n  ".join(f"beat{n}: clip {c} slot {s}" for n, c, s in bad)
+            + "\nRun `python tighten.py` first — do NOT convert the raw mp3s."
+        )
+
+
 def build() -> str:
     total = TOTAL + 0.25
     n = A.T(total)
 
+    check_voice_clips()
     print("voice…");  voice, venv = A.build_voice(total)
-    print("music…");  music = music_v10.build(total)
+    import importlib
+    mod = importlib.import_module(os.environ.get("MUSIC_MODULE", "music_v12"))
+    print(f"music… ({mod.__name__})");  music = mod.build(total)
     print("design…")
     keys, accents, counts, log = design(total)
     print("       " + "  ".join(f"{k}={v}" for k, v in sorted(counts.items())))
@@ -261,7 +288,7 @@ def build() -> str:
                     ("stem_music_ducked", music_ducked),
                     ("stem_keys", keys), ("stem_accents", accents)):
         sf.write(os.path.join(OUT, name + ".wav"), x.astype(np.float32), SR, subtype="FLOAT")
-    path = os.path.join(OUT, "mix_v10.wav")
+    path = os.path.join(OUT, os.environ.get("MIX_NAME", "mix_v12.wav"))
     sf.write(path, mix.astype(np.float32), SR, subtype="FLOAT")
 
     print(f"wrote {path} {n / SR:.2f}s")

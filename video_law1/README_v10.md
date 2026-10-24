@@ -1,6 +1,6 @@
 # Law 1 — v10: score-driven mix + cinema-layer picture
 
-> **Current build:** `v3out/MonarchVoice_Law1_v11_CINEMATIC_9x16.mp4` (v10 file retired — it carried the echo the user rejected)
+> **Current build:** `v3out/MonarchVoice_Law1_v12_CINEMATIC_9x16.mp4` (v10 echo + v11 doubled-voice builds retired)
 > 63.33 s · 1080×1920 · 30 fps · H.264 High 5.1 Mb/s + AAC 260 k · **41 MB**
 > **−13.9 LUFS / −1.0 dBTP / LRA 1.6** (ideal for YouTube/IG/Reels at −14)
 
@@ -124,3 +124,70 @@ ffmpeg -i <silent_picture>.mp4 -i v3out/mix_v10.wav \
        -map 0:v -c:v copy -map 1:a -c:a aac -b:a 256k -movflags +faststart -shortest \
        v3out/MonarchVoice_Law1_v11_CINEMATIC_9x16.mp4
 ```
+
+## v12 — the mix that was actually broken (voice double + holes) and the bed cut to 3 layers
+
+Two separate faults were reported after v11; both were real, and the first one
+had nothing to do with music.
+
+### 1. "voice over ke upper voice over" + "bilawaja gap" = a rebuild accident
+
+`audio_v4/` is gitignored. After a sandbox reset it was recreated by converting
+`audio/beat*.mp3` with ffmpeg — but those mp3s are the **untrimmed** TTS, and
+every clip is longer than its scene slot:
+
+| beat | raw clip | scene slot |
+|---|---|---|
+| 2 | **8.52 s** | 4.50 s → ran 4 s into beat 3 |
+| 4 | 5.00 | 3.90 |
+| 5 | 5.60 | 5.00 |
+| 7 | 7.80 | 7.30 |
+| 8 | 6.52 | 5.88 |
+| 9 | 5.12 | 4.68 |
+
+Placed at `b["start"]`, a clip that long **overlaps the next scene's narration**
+(two voices at once) and the slots it does not reach stay empty (holes).
+`tighten.py` is the only correct producer — it trims to speech, squeezes pauses
+>0.34 s to 0.18 s, writes `audio_v4/` **and** regenerates `timeline_v4.py`.
+
+Re-running it reproduced the committed `timeline_v4.py` **byte for byte**, so
+the picture needed no re-render — every clip now fits its slot exactly:
+
+- voice active **66.7 % → 75.8 %** of the runtime
+- gaps ≥0.35 s: **13 → 11**, and all 11 are natural 0.36–0.40 s scene seams (plus the end card)
+- `audio_v10.check_voice_clips()` now hard-fails the build if any clip length
+  disagrees with its slot, and tells you to run `tighten.py`
+
+### 2. "irritating bekar music" = the arrangement, not the level
+
+v10 ran **8 layers** at 84 BPM — felt-piano motif, celesta, bell, cello
+counter-line, heartbeat pulse, reverse swells. Under a voice-over that is a
+*second performance*. `music_v12.py` keeps three things and drops the rest:
+
+| | v10 | v12 |
+|---|---|---|
+| layers | 8 (piano motif, celesta, bell, cello, pulse, swells, sub, pad) | **3** (pad, sub, mark) |
+| melody | continuous piano motif | **none** — one low note per scene change (10 total) |
+| noise layers | air bed + husk | none |
+| width | 0.12 | 0.08 |
+| level under voice | 5 dB | **8 dB** (`MUSIC_UNDER`) |
+
+Music is present in **100 %** of seconds (min −37.2, median −30.6 dBFS) but never
+fights a word: it is a floor, not a tune.
+
+### v12 QC (`MonarchVoice_Law1_v12_CINEMATIC_9x16.mp4`, 42 MB, 63.3 s)
+
+- −14.7 LUFS · −1.0 dBTP · LRA 1.8 · **0 clipped samples**
+- stems: voice −19.9 · music −30.0 · accents −38.1 · keys −49.5 dBFS
+- picture: `-c:v copy` from v11 — no re-render, all sync intact
+
+```bash
+python tighten.py                                   # ONLY if audio_v4/ is missing
+python music_v12.py                                 # -> v3out/music_v12.wav
+python audio_v10.py                                 # -> v3out/mix_v12.wav (+ stems)
+ffmpeg -i <picture>.mp4 -i v3out/mix_v12.wav -map 0:v -c:v copy -map 1:a \
+       -c:a aac -b:a 256k -movflags +faststart -shortest out.mp4
+```
+
+`MUSIC_MODULE` selects the score (`music_v12` default, `music_v10` the old one),
+`MUSIC_UNDER` the level under the voice, `MIX_NAME` the output stem name.

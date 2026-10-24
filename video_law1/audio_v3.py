@@ -18,7 +18,6 @@ from timeline_v4 import BEATS, TOTAL
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
-SFX_DIR = os.path.join(ROOT, "audio_v4", "sfx_py")
 os.makedirs(OUT, exist_ok=True)
 FF = "/tmp/v/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
 SR = 48000
@@ -404,165 +403,11 @@ def hl(x):
     return (y * e).astype(np.float32)
 
 
-# ---------------------------------------------------------------- sfx polish
+# ------------------------------------------------------------------ sfx reverb
+# The sampled SFX library, its loader and `build_sfx()` are gone (v8). What is
+# left here is the voice chain, the music bed and the mix helpers used by
+# audio_v8.py — plus this small room, applied to accents only.
 VERB_SFX = Reverb(.70, 2.6, .012, 5200, 11)   # whisper of space, no audible tail
-
-
-def polish_sfx(a, kind):
-    """light finishing for library one-shots: DC off, sub-safety, soft edges."""
-    a = a.astype(np.float32)
-    a = a - float(a.mean())
-    a = hp(a, 26)
-    a = lp(a, 15000)
-    a = np.tanh(a * 1.04) / 1.04
-    m = float(np.abs(a).max())
-    return (a / max(m, 1e-9) * .98).astype(np.float32)
-
-
-# ---------------------------------------------------------------- SFX library
-class SFXLib:
-    def __init__(self, folder):
-        self.by_kind = {}
-        self.idx = json.load(open(os.path.join(folder, "index.json")))
-        for x in self.idx:
-            p = os.path.join(folder, x["name"] + ".wav")
-            if not os.path.exists(p):
-                continue
-            a, sr = sf.read(p, dtype="float32")
-            if a.ndim == 1:
-                a = np.stack([a, a], axis=1)
-            if sr != SR:
-                a = signal.resample(a, int(len(a) * SR / sr), axis=0).astype(np.float32)
-            self.by_kind.setdefault(x["kind"], []).append(
-                (x["name"], polish_sfx(a, x["kind"]), x.get("sync", 0.0)))
-
-    def sfx(self, kind):
-        pool = self.by_kind.get(kind) or []
-        if not pool:
-            return None, 0.0
-        name, a, sync = pool[int(rng.integers(0, len(pool)))]
-        return a, sync
-
-
-R = SFXLib(SFX_DIR)
-
-
-def build_sfx(total):
-    """Sound design from the CC0 wyzowl/sfx-kit library, placed with catalogue
-    sync points so every hit meets its frame exactly."""
-    n = T(total)
-    buf = np.zeros((n, 2), dtype=np.float32)
-    send = np.zeros((n, 2), dtype=np.float32)
-
-    def hit(kind, at, gain=.4, pan=0.0, sync=0.0, width=.12, rev=.03):
-        """start so that the sound's peak (at + sync) lands on `at`"""
-        s, sd = R.sfx(kind)
-        if s is None:
-            return
-        place(buf, s, at - sync, gain=gain, pan=pan, rev=send, rev_gain=rev, width=width)
-
-    # ---- transition whooshes: one per scene change, auto-picked from `trans`
-    TW = {"punch": "whoosh-fast-hard", "slide": "whoosh-medium-medium",
-          "whoosh": "whoosh-medium-soft", "flash": "whoosh-fast-soft",
-          "slam": "whoosh-medium-hard"}
-    for b in BEATS:
-        name = TW.get(b.get("trans", "whoosh"), "whoosh-medium-medium")
-        s, sd = R.sfx("whoosh")
-        if s is not None and name:
-            place(buf, s, b["start"] - .02, gain=.16, pan=-.18, rev=send, rev_gain=.02, width=.35)
-
-    # ---- beat 1: hook. reverse whoosh into the slam, then the warning pills
-    b1 = BEATS[0]; st = b1["start"]
-    hit("reverse", st + 1.55, .24, .0, .682, width=.3)          # air drawn in
-    hit("slam", st + 1.55, .55, 0.0, .011, width=.15)            # door slam = RUK JAO!
-    hit("boom", st + 1.60, .38, 0.0, .021, width=.10)
-    hit("whoosh", st + 2.05, .20, -.25, .092, width=.30)
-    hit("click", st + 2.95, .16, .30, .021, width=.08)           # AAP pill
-    hit("click", st + 5.25, .18, -.25, .015, width=.08)          # CAREER WARNING
-    hit("boom", st + 5.35, .22, 0.0, .021, width=.10)
-
-    # ---- beat 2: title. riser into the crown, drum on LAW, ding on ONE
-    b2 = BEATS[1]; st = b2["start"]
-    hit("riser", st + 1.05, .30, 0.0, 1.978, width=.25)
-    hit("slam", st + 1.05, .45, 0.0, .034, width=.15)
-    hit("impact", st + 1.40, .30, -.12, .010, width=.10)
-    hit("tonal", st + 1.85, .18, .15, 0.0, width=.25)
-    hit("stinger", st + 2.55, .22, .0, 0.0, width=.20)
-    hit("shimmer", st + 3.05, .14, .2, 0.0, width=.4)
-    hit("pop", st + 4.45, .16, 0.0, .011, width=.15)
-
-    # ---- beat 3: France 1661 — spotlight, palace rising out of particles
-    b3 = BEATS[2]; st = b3["start"]
-    hit("whoosh", st + 0.60, .18, -.20, .438, width=.30)
-    hit("transform", st + 1.55, .22, .0, .003, width=.20)
-    hit("impact", st + 1.95, .26, .12, .010, width=.12)
-    hit("pop", st + 4.30, .15, -.2, .011, width=.15)
-    hit("shimmer", st + 6.00, .13, .1, 0.0, width=.35)
-    hit("swish", st + 7.30, .13, .25, .076, width=.20)
-
-    # ---- beat 4: nobles murmuring
-    b4 = BEATS[3]; st = b4["start"]
-    hit("whoosh", st + .55, .16, .18, .209, width=.25)
-    hit("pop", st + 1.60, .12, -.30, .011, width=.15)
-    hit("click", st + 2.30, .10, .20, .008, width=.08)
-    hit("tonal", st + 2.85, .12, -.1, 0.0, width=.20)
-    hit("swish", st + 3.30, .12, -.2, .054, width=.18)
-
-    # ---- beat 5: the king smiles — jealousy catches fire
-    b5 = BEATS[4]; st = b5["start"]
-    hit("boom", st + 0.10, .34, 0.0, .021, width=.12)            # rumble under
-    hit("whoosh", st + 0.85, .20, -.30, .201, width=.25)
-    hit("impact", st + 1.85, .34, .10, .010, width=.12)
-    hit("appear", st + 2.05, .20, -.1, .010, width=.20)           # poof / burst
-    hit("riser", st + 3.60, .24, 0.0, 1.978, width=.25)
-    hit("boom", st + 4.10, .30, 0.0, .095, width=.15)
-
-    # ---- beat 6: arrest. massive slam, iron latch, the door closing on him
-    b6 = BEATS[5]; st = b6["start"]
-    hit("reverse", st + 1.20, .26, 0.0, 1.165, width=.30)
-    hit("slam", st + 1.20, .55, 0.0, .084, width=.15)
-    hit("boom", st + 1.30, .34, 0.0, .052, width=.12)
-    hit("click", st + 3.00, .14, .25, .021, width=.08)            # latch
-    hit("impact", st + 3.05, .20, -.15, .010, width=.10)
-    hit("boom", st + 4.30, .24, 0.0, .021, width=.12)
-    hit("faller", st + 4.70, .16, -.1, .015, width=.20)
-
-    # ---- beat 7: teaching. clean, dry, on the beat
-    b7 = BEATS[6]; st = b7["start"]
-    hit("whoosh", st + .35, .14, 0.0, .229, width=.25)
-    hit("tonal", st + 1.05, .14, -.15, 0.0, width=.20)
-    hit("pop", st + 2.60, .14, .20, .011, width=.15)
-    hit("click", st + 4.10, .10, -.2, .009, width=.08)
-    hit("shimmer", st + 4.90, .12, .1, 0.0, width=.30)
-
-    # ---- beat 8: bright, talent + credit
-    b8 = BEATS[7]; st = b8["start"]
-    hit("whoosh", st + .40, .16, .20, .096, width=.30)
-    hit("move", st + 1.70, .20, -.15, 0.0, width=.20)             # spring
-    hit("shimmer", st + 2.55, .16, .1, 0.0, width=.35)
-    hit("pop", st + 3.60, .16, .20, .011, width=.15)
-    hit("tonal", st + 4.30, .14, -.1, 0.0, width=.25)
-
-    # ---- beat 9: the quote. sub drop, then the two words land
-    b9 = BEATS[8]; st = b9["start"]
-    hit("boom", st + .10, .30, 0.0, .021, width=.12)
-    hit("shimmer", st + 2.10, .14, .1, 0.0, width=.35)
-    hit("click", st + 2.60, .16, .25, .015, width=.08)            # BEIZZATI snap
-    hit("tonal", st + 3.70, .13, -.15, 0.0, width=.25)
-
-    # ---- beat 10: end card. long riser, massive drum, sting, then out
-    b10 = BEATS[9]; st = b10["start"]
-    hit("riser", st - .55, .30, 0.0, 3.977, width=.25)
-    hit("slam", st + .05, .50, 0.0, .034, width=.15)
-    hit("stinger", st + 1.55, .24, .0, 0.0, width=.25)
-    hit("boom", st + 1.75, .34, 0.0, .095, width=.15)
-    hit("shimmer", st + 4.10, .14, .1, 0.0, width=.35)
-    hit("whoosh", st + 4.70, .14, .2, .403, width=.30)
-
-    # a whisper of space only, never a tail
-    wet = VERB_SFX(buf)
-    buf = (buf * .97 + wet * .03).astype(np.float32)
-    return widen(buf, .18)
 
 
 def decode(path):
@@ -667,55 +512,9 @@ def rms_db(x):
 
 
 def build():
-    total = TOTAL + .25
-    print("voice…"); voice, venv = build_voice(total)
-    print("music…"); music = build_music(total)
-    print("sfx…");   sfx = build_sfx(total)
-    n = T(total)
-    voice, music, sfx = voice[:n], music[:n], sfx[:n]
-
-    # ---- loudness staging: voice is the reference, everything else is placed under it
-    voice = voice / max(np.abs(voice).max(), 1e-9) * 10 ** (-1.5 / 20)
-    vr = rms_db(voice)
-
-    # music: set so that (after ducking) it sits ~18 dB under the voice
-    music = music / max(np.abs(music).max(), 1e-9)
-    music = music * (10 ** ((vr - 11.5) / 20) / max(rms_db(music), -90) if False else 1.0)
-    m_r = rms_db(music)
-    music = music * 10 ** ((vr - 12.0 - m_r) / 20)
-
-    # sfx: accents peak just under the voice, never over it
-    sfx = sfx / max(np.abs(sfx).max(), 1e-9) * 10 ** (-7.5 / 20)
-
-    # duck
-    d = smooth(venv[:n], 260)
-    d = np.clip(d / max(d.max(), 1e-9) * 2.2, 0, 1)
-    duck_music = 1 - 0.60 * d
-    duck_sfx = 1 - 0.30 * d
-
-    music = music * duck_music[:, None]
-    sfx = sfx * duck_sfx[:, None]
-    mix = voice + music + sfx
-
-    mix = tape(mix, 1.1, 0.0)
-    mix = compress(mix, -11, 2.4, .004, .18, 0.0)
-    mix = mix * (10 ** (3.8 / 20))
-    mix = np.tanh(mix * 0.98) / 0.98
-    pk = np.abs(mix).max()
-    if pk > .89:
-        mix = mix / pk * .89
-    fi = T(.02); fo = T(1.4)
-    mix[:fi, :] *= np.linspace(0, 1, fi)[:, None].astype(np.float32)
-    mix[-fo:, :] *= np.linspace(1, 0, fo)[:, None].astype(np.float32)
-
-    for nm, bus in (("stem_voice", voice), ("stem_music", music), ("stem_sfx", sfx)):
-        sf.write(os.path.join(OUT, nm + ".wav"), bus.astype(np.float32), SR, subtype="FLOAT")
-    path = os.path.join(OUT, "mix_v3.wav")
-    sf.write(path, mix.astype(np.float32), SR, subtype="FLOAT")
-    print("wrote", path, f"{n / SR:.2f}s",
-          f"| voice {rms_db(voice):.1f} music {rms_db(music):.1f} sfx {rms_db(sfx):.1f} dB RMS"
-          f"| peaks v {20*np.log10(max(np.abs(voice).max(),1e-9)):.1f} m {20*np.log10(max(np.abs(music).max(),1e-9)):.1f} s {20*np.log10(max(np.abs(sfx).max(),1e-9)):.1f} mix {20*np.log10(max(np.abs(mix).max(),1e-9)):.1f}")
-    return path
+    """Superseded by audio_v8.py (new synthesized SFX + typing). Kept as a shim."""
+    import audio_v8
+    return audio_v8.build()
 
 
 if __name__ == "__main__":

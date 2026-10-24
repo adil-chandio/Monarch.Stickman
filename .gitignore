@@ -33,3 +33,10 @@ video_law1/v3out/still_*.png
 video_law1/v3out/qa_*.jpg
 video_law1/audio_v4/
 video_law1/v3out/*.wav
+
+# v8: the synthesized SFX kit and the derived mixes are rebuilt by
+# `python sfx_v8.py` / `python audio_v8.py` in ~2 s and ~60 s
+video_law1/audio_v8/
+video_law1/v3out/video_v8_silent.mp4
+video_law1/v3out/mix_v8.wav
+video_law1/v3out/stem_*.wav

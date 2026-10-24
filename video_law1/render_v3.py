@@ -844,7 +844,7 @@ def compose(t):
 # =====================================================================
 def render_video():
     total_frames = int(round(TOTAL * FPS))
-    silent = os.path.join(OUT, "video_v7_silent.mp4")
+    silent = os.path.join(OUT, "video_v8_silent.mp4")
     cmd = [FF, "-y", "-hide_banner", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -881,11 +881,11 @@ if __name__ == "__main__":
         for b in BEATS:
             print(f"  beat {b['n']:2d} {b['kind']:7s} start {b['start']:6.2f} dur {b['dur']:5.2f}")
     else:
-        import audio_v3
+        import audio_v8
         print(f"TOTAL {TOTAL:.2f}s  frames {int(TOTAL * FPS)}")
         v, n = render_video()
         print("silent:", v, n)
-        wav = audio_v3.build()
-        final = os.path.join(OUT, "MonarchVoice_Law1_v7_CINEMATIC_9x16.mp4")
+        wav = audio_v8.build()
+        final = os.path.join(OUT, "MonarchVoice_Law1_v8_CINEMATIC_9x16.mp4")
         mux(v, wav, final)
         print("FINAL:", final)

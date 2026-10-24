@@ -11,8 +11,13 @@ from vlib import *          # noqa
 import vlib
 from timeline_v4 import BEATS, TOTAL
 
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
+
+# ---- animation probe: records when every element appears/moves (see probe.py)
+import probe  # noqa: E402
+probe.ENABLED = os.environ.get("MV_PROBE") == "1"
 os.makedirs(OUT, exist_ok=True)
 FF = "/tmp/v/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
 FPS = 30
@@ -839,6 +844,23 @@ def compose(t):
     img = apply_grain(img, int(t * FPS), .05)
     return img
 
+def derived_events():
+    """Events that are not element draws: camera punches, caption changes, beats."""
+    derived, captions, beats = [], [], []
+    for b in BEATS:
+        beats.append(dict(t=round(b["start"], 3), n=b["n"], kind=b.get("kind"),
+                          trans=b.get("trans")))
+        for ht, amp in IMPACTS.get(b["n"], []):
+            derived.append(dict(t=round(b["start"] + ht, 3), type="impact", el="camera",
+                                label=f"punch{amp:.3f}", amp=round(min(1.0, amp / .040), 2),
+                                x=None, y=None, fs=0, scale=1.0))
+        cues = b.get("cue_times", [])
+        for ci, c in enumerate(cues):
+            captions.append(dict(t=round(b["start"] + c["t"], 3), beat=b["n"], cue=ci,
+                                 text=c["text"], kw=c.get("kw", [])))
+    return {"derived": derived, "captions": captions, "beats": beats}
+
+
 # =====================================================================
 #  RENDER
 # =====================================================================
@@ -876,6 +898,24 @@ if __name__ == "__main__":
             p = os.path.join(OUT, f"still_{ts:06.2f}.png")
             compose(ts).save(p)
             print("saved", p)
+    elif mode == "events":
+        import json
+        probe.ENABLED = True
+        probe.install(sys.modules[__name__])
+        for b in BEATS:
+            frames = int(round(b["dur"] * FPS))
+            for i in range(frames):
+                t = b["start"] + i / FPS
+                probe.T_NOW = t
+                compose(t)
+        extra = derived_events()
+        data = probe.dump(os.path.join(OUT, "anim_events.json"), extra)
+        ev = data["events"]
+        print(f"{len(ev)} element events, {len(extra['derived'])} derived "
+              f"-> {os.path.join(OUT, 'anim_events.json')}")
+        from collections import Counter
+        print("  by type:", dict(Counter(e["type"] for e in ev)))
+        print("  by element:", dict(Counter(e["el"] for e in ev)))
     elif mode == "timeline":
         print(f"TOTAL {TOTAL:.2f}s")
         for b in BEATS:

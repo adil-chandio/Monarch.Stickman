@@ -1,0 +1,2025 @@
+{
+ "events": [
+  {
+   "t": 0.3,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@200x1780",
+   "x": 200.0,
+   "y": 1780.0,
+   "fs": 0,
+   "amp": 0.9,
+   "scale": 1.3
+  },
+  {
+   "t": 0.3,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@900x1760",
+   "x": 900.0,
+   "y": 1760.0,
+   "fs": 0,
+   "amp": 0.8,
+   "scale": 1.15
+  },
+  {
+   "t": 0.3,
+   "type": "appear",
+   "el": "particles",
+   "label": "spark",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.85,
+   "scale": 1.0
+  },
+  {
+   "t": 0.3,
+   "type": "appear",
+   "el": "flash",
+   "label": "0.30",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.45,
+   "scale": 1.0
+  },
+  {
+   "t": 0.333,
+   "type": "appear",
+   "el": "flash",
+   "label": "0.33",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.36,
+   "scale": 1.0
+  },
+  {
+   "t": 0.367,
+   "type": "appear",
+   "el": "host",
+   "label": "host_worried",
+   "x": 330.0,
+   "y": 1830.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 0.367,
+   "type": "appear",
+   "el": "big",
+   "label": "RUK JAO!",
+   "x": 540.0,
+   "y": 462.0,
+   "fs": 116,
+   "amp": 0.47,
+   "scale": 1.028
+  },
+  {
+   "t": 0.367,
+   "type": "appear",
+   "el": "flash",
+   "label": "0.37",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.26,
+   "scale": 1.0
+  },
+  {
+   "t": 0.4,
+   "type": "appear",
+   "el": "flash",
+   "label": "0.40",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.17,
+   "scale": 1.0
+  },
+  {
+   "t": 0.433,
+   "type": "appear",
+   "el": "image",
+   "label": "icon_warning",
+   "x": 800.0,
+   "y": 980.0,
+   "fs": 0,
+   "amp": 0.53,
+   "scale": 0.775
+  },
+  {
+   "t": 1.267,
+   "type": "appear",
+   "el": "pill",
+   "label": "WARNING",
+   "x": 800.0,
+   "y": 1235.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 0.942
+  },
+  {
+   "t": 1.867,
+   "type": "appear",
+   "el": "pill",
+   "label": "AAP",
+   "x": 330.0,
+   "y": 1410.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 4.767,
+   "type": "appear",
+   "el": "pill",
+   "label": "CAREER \u00b7 WARNING",
+   "x": 330.0,
+   "y": 1500.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 6.42,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@540x470",
+   "x": 540.0,
+   "y": 470.0,
+   "fs": 0,
+   "amp": 0.95,
+   "scale": 1.075
+  },
+  {
+   "t": 6.42,
+   "type": "appear",
+   "el": "particles",
+   "label": "dust",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.85,
+   "scale": 1.0
+  },
+  {
+   "t": 6.42,
+   "type": "appear",
+   "el": "transition",
+   "label": "slide",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.5,
+   "scale": 1.0
+  },
+  {
+   "t": 6.553,
+   "type": "appear",
+   "el": "image",
+   "label": "icon_crown",
+   "x": 540.0,
+   "y": -179.6,
+   "fs": 0,
+   "amp": 0.4,
+   "scale": 0.87
+  },
+  {
+   "t": 6.82,
+   "type": "appear",
+   "el": "text",
+   "label": "LAW",
+   "x": 540.0,
+   "y": 760.0,
+   "fs": 108,
+   "amp": 0.36,
+   "scale": 1.0
+  },
+  {
+   "t": 6.92,
+   "type": "appear",
+   "el": "text",
+   "label": "ONE",
+   "x": 540.0,
+   "y": 905.0,
+   "fs": 139,
+   "amp": 0.36,
+   "scale": 1.0
+  },
+  {
+   "t": 7.02,
+   "type": "appear",
+   "el": "flash",
+   "label": "7.02",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.18,
+   "scale": 1.0
+  },
+  {
+   "t": 7.053,
+   "type": "appear",
+   "el": "flash",
+   "label": "7.05",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.29,
+   "scale": 1.0
+  },
+  {
+   "t": 7.087,
+   "type": "appear",
+   "el": "flash",
+   "label": "7.09",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.19,
+   "scale": 1.0
+  },
+  {
+   "t": 7.587,
+   "type": "appear",
+   "el": "text",
+   "label": "NEVER OUTSHINE",
+   "x": 540.0,
+   "y": 1122.0,
+   "fs": 72,
+   "amp": 0.39,
+   "scale": 1.0
+  },
+  {
+   "t": 7.887,
+   "type": "appear",
+   "el": "text",
+   "label": "THE MASTER",
+   "x": 540.0,
+   "y": 1208.0,
+   "fs": 72,
+   "amp": 0.39,
+   "scale": 1.0
+  },
+  {
+   "t": 8.387,
+   "type": "appear",
+   "el": "pill",
+   "label": "48 LAWS OF POWER",
+   "x": 540.0,
+   "y": 1330.0,
+   "fs": 0,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 9.087,
+   "type": "appear",
+   "el": "host",
+   "label": "host_think",
+   "x": null,
+   "y": 1850.2,
+   "fs": 0,
+   "amp": 0.36,
+   "scale": 1.0
+  },
+  {
+   "t": 11.24,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@540x900",
+   "x": 540.0,
+   "y": 900.0,
+   "fs": 0,
+   "amp": 0.85,
+   "scale": 1.075
+  },
+  {
+   "t": 11.24,
+   "type": "appear",
+   "el": "transition",
+   "label": "whoosh",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.5,
+   "scale": 1.0
+  },
+  {
+   "t": 11.34,
+   "type": "appear",
+   "el": "pill",
+   "label": "FRANCE  \u00b7  1661",
+   "x": 540.0,
+   "y": 360.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 0.964
+  },
+  {
+   "t": 11.507,
+   "type": "appear",
+   "el": "image",
+   "label": "king_throne",
+   "x": 540.0,
+   "y": 880.0,
+   "fs": 0,
+   "amp": 0.4,
+   "scale": 0.963
+  },
+  {
+   "t": 12.54,
+   "type": "appear",
+   "el": "pill",
+   "label": "KING LOUIS XIV",
+   "x": 540.0,
+   "y": 1330.0,
+   "fs": 0,
+   "amp": 0.37,
+   "scale": 0.962
+  },
+  {
+   "t": 13.24,
+   "type": "appear",
+   "el": "text",
+   "label": "KA FINANCE MINISTER",
+   "x": 540.0,
+   "y": 1428.0,
+   "fs": 25,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 13.44,
+   "type": "appear",
+   "el": "text",
+   "label": "N|",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.507,
+   "type": "appear",
+   "el": "text",
+   "label": "Ni|",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.54,
+   "type": "appear",
+   "el": "text",
+   "label": "Nic|",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.573,
+   "type": "appear",
+   "el": "text",
+   "label": "Nico",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.64,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicol",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.673,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicola",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.707,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.773,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas ",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.807,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas F",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.873,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas Fo",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.907,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas Fou",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 13.94,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas Fouq|",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 14.007,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas Fouqu|",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 14.04,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas Fouque|",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 14.073,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas Fouquet|",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 14.207,
+   "type": "appear",
+   "el": "pill",
+   "label": "MINISTER OF FINANCE",
+   "x": 540.0,
+   "y": 1610.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 14.24,
+   "type": "appear",
+   "el": "text",
+   "label": "Nicolas Fouquet",
+   "x": 540.0,
+   "y": 1505.0,
+   "fs": 62,
+   "amp": 1.0,
+   "scale": 1.0
+  },
+  {
+   "t": 20.48,
+   "type": "appear",
+   "el": "pill",
+   "label": "VAUX-LE-VICOMTE  \u00b7  1661",
+   "x": 540.0,
+   "y": 1010.0,
+   "fs": 0,
+   "amp": 0.37,
+   "scale": 1.0
+  },
+  {
+   "t": 21.08,
+   "type": "appear",
+   "el": "text",
+   "label": "\u201cYeh to KING se bhi",
+   "x": 560.0,
+   "y": 1190.0,
+   "fs": 52,
+   "amp": 0.36,
+   "scale": 1.0
+  },
+  {
+   "t": 22.147,
+   "type": "appear",
+   "el": "host",
+   "label": "host_happy",
+   "x": null,
+   "y": 1856.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 22.147,
+   "type": "appear",
+   "el": "pill",
+   "label": "MEHMAAN HAIRAN",
+   "x": 730.0,
+   "y": 1660.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 24.2,
+   "type": "appear",
+   "el": "transition",
+   "label": "flash",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.5,
+   "scale": 1.0
+  },
+  {
+   "t": 24.2,
+   "type": "appear",
+   "el": "flash",
+   "label": "24.20",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.34,
+   "scale": 1.0
+  },
+  {
+   "t": 24.233,
+   "type": "appear",
+   "el": "flash",
+   "label": "24.23",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.32,
+   "scale": 1.0
+  },
+  {
+   "t": 24.267,
+   "type": "appear",
+   "el": "image",
+   "label": "king_throne",
+   "x": 540.0,
+   "y": 880.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 24.267,
+   "type": "appear",
+   "el": "flash",
+   "label": "24.27",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.26,
+   "scale": 1.0
+  },
+  {
+   "t": 24.3,
+   "type": "appear",
+   "el": "flash",
+   "label": "24.30",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.17,
+   "scale": 1.0
+  },
+  {
+   "t": 24.467,
+   "type": "appear",
+   "el": "pill",
+   "label": "KING",
+   "x": 285.0,
+   "y": 1402.0,
+   "fs": 0,
+   "amp": 0.47,
+   "scale": 1.0
+  },
+  {
+   "t": 25.333,
+   "type": "appear",
+   "el": "image",
+   "label": "icon_flame",
+   "x": 800.0,
+   "y": 940.0,
+   "fs": 0,
+   "amp": 0.32,
+   "scale": 0.548
+  },
+  {
+   "t": 25.5,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@800x940",
+   "x": 800.0,
+   "y": 940.0,
+   "fs": 0,
+   "amp": 0.19,
+   "scale": 0.384
+  },
+  {
+   "t": 25.767,
+   "type": "appear",
+   "el": "big",
+   "label": "JALAN",
+   "x": 800.0,
+   "y": 1218.0,
+   "fs": 96,
+   "amp": 0.33,
+   "scale": 0.959
+  },
+  {
+   "t": 25.767,
+   "type": "appear",
+   "el": "text",
+   "label": "J E A L O U S Y",
+   "x": 800.0,
+   "y": 1288.0,
+   "fs": 22,
+   "amp": 0.32,
+   "scale": 1.0
+  },
+  {
+   "t": 25.8,
+   "type": "appear",
+   "el": "particles",
+   "label": "ember",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.31,
+   "scale": 1.0
+  },
+  {
+   "t": 26.4,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@800x940",
+   "x": 800.0,
+   "y": 940.0,
+   "fs": 0,
+   "amp": 0.19,
+   "scale": 0.525
+  },
+  {
+   "t": 26.633,
+   "type": "appear",
+   "el": "host",
+   "label": "host_think",
+   "x": null,
+   "y": 1850.2,
+   "fs": 0,
+   "amp": 0.45,
+   "scale": 1.0
+  },
+  {
+   "t": 27.533,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@800x940",
+   "x": 800.0,
+   "y": 940.0,
+   "fs": 0,
+   "amp": 0.18,
+   "scale": 0.672
+  },
+  {
+   "t": 28.667,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@800x940",
+   "x": 800.0,
+   "y": 940.0,
+   "fs": 0,
+   "amp": 0.17,
+   "scale": 0.688
+  },
+  {
+   "t": 29.52,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@540x1080",
+   "x": 540.0,
+   "y": 1080.0,
+   "fs": 0,
+   "amp": 0.9,
+   "scale": 1.175
+  },
+  {
+   "t": 29.52,
+   "type": "appear",
+   "el": "transition",
+   "label": "slam",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.5,
+   "scale": 1.0
+  },
+  {
+   "t": 29.52,
+   "type": "appear",
+   "el": "flash",
+   "label": "29.52",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.55,
+   "scale": 1.0
+  },
+  {
+   "t": 29.553,
+   "type": "appear",
+   "el": "flash",
+   "label": "29.55",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.49,
+   "scale": 1.0
+  },
+  {
+   "t": 29.587,
+   "type": "appear",
+   "el": "flash",
+   "label": "29.59",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.43,
+   "scale": 1.0
+  },
+  {
+   "t": 29.62,
+   "type": "appear",
+   "el": "flash",
+   "label": "29.62",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.37,
+   "scale": 1.0
+  },
+  {
+   "t": 29.653,
+   "type": "appear",
+   "el": "flash",
+   "label": "29.65",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.31,
+   "scale": 1.0
+  },
+  {
+   "t": 29.687,
+   "type": "appear",
+   "el": "flash",
+   "label": "29.69",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.24,
+   "scale": 1.0
+  },
+  {
+   "t": 29.72,
+   "type": "appear",
+   "el": "host",
+   "label": "host_worried",
+   "x": 330.0,
+   "y": 1830.0,
+   "fs": 0,
+   "amp": 0.43,
+   "scale": 1.0
+  },
+  {
+   "t": 29.72,
+   "type": "appear",
+   "el": "flash",
+   "label": "29.72",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.18,
+   "scale": 1.0
+  },
+  {
+   "t": 31.287,
+   "type": "appear",
+   "el": "flash",
+   "label": "31.29",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.18,
+   "scale": 1.0
+  },
+  {
+   "t": 31.32,
+   "type": "appear",
+   "el": "flash",
+   "label": "31.32",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.31,
+   "scale": 1.0
+  },
+  {
+   "t": 31.353,
+   "type": "appear",
+   "el": "flash",
+   "label": "31.35",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.26,
+   "scale": 1.0
+  },
+  {
+   "t": 32.42,
+   "type": "appear",
+   "el": "pill",
+   "label": "SIRF EK PALACE KI WAJAH SE",
+   "x": 540.0,
+   "y": 1660.0,
+   "fs": 0,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 33.187,
+   "type": "appear",
+   "el": "pill",
+   "label": "1661  \u2192  1680  \u00b7  QAID",
+   "x": 540.0,
+   "y": 1755.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 36.953,
+   "type": "appear",
+   "el": "text",
+   "label": "MASTER",
+   "x": 540.0,
+   "y": 520.0,
+   "fs": 103,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 37.387,
+   "type": "appear",
+   "el": "image",
+   "label": "icon_crown",
+   "x": 540.0,
+   "y": -179.6,
+   "fs": 0,
+   "amp": 0.53,
+   "scale": 1.0
+  },
+  {
+   "t": 37.953,
+   "type": "appear",
+   "el": "text",
+   "label": "INSECURE",
+   "x": 540.0,
+   "y": 745.0,
+   "fs": 78,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 38.187,
+   "type": "appear",
+   "el": "text",
+   "label": "MAT KARO",
+   "x": 540.0,
+   "y": 832.0,
+   "fs": 78,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 38.687,
+   "type": "appear",
+   "el": "host",
+   "label": "host_think",
+   "x": null,
+   "y": 1850.2,
+   "fs": 0,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 40.487,
+   "type": "appear",
+   "el": "text",
+   "label": "tumhari kamyabi",
+   "x": 785.0,
+   "y": 1212.0,
+   "fs": 34,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 40.487,
+   "type": "appear",
+   "el": "text",
+   "label": "= uska inaam",
+   "x": 785.0,
+   "y": 1282.0,
+   "fs": 44,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 44.34,
+   "type": "appear",
+   "el": "halo",
+   "label": "halo@540x950",
+   "x": 540.0,
+   "y": 950.0,
+   "fs": 0,
+   "amp": 0.9,
+   "scale": 1.075
+  },
+  {
+   "t": 44.507,
+   "type": "appear",
+   "el": "text",
+   "label": "SMART RAHO...",
+   "x": 540.0,
+   "y": 470.0,
+   "fs": 76,
+   "amp": 0.39,
+   "scale": 1.0
+  },
+  {
+   "t": 44.74,
+   "type": "appear",
+   "el": "image",
+   "label": "icon_scale",
+   "x": 540.0,
+   "y": 880.0,
+   "fs": 0,
+   "amp": 0.82,
+   "scale": 0.834
+  },
+  {
+   "t": 45.54,
+   "type": "appear",
+   "el": "pill",
+   "label": "TALENT",
+   "x": 340.0,
+   "y": 1140.0,
+   "fs": 0,
+   "amp": 0.37,
+   "scale": 0.937
+  },
+  {
+   "t": 45.807,
+   "type": "appear",
+   "el": "pill",
+   "label": "CREDIT",
+   "x": 748.0,
+   "y": 1140.0,
+   "fs": 0,
+   "amp": 0.47,
+   "scale": 0.947
+  },
+  {
+   "t": 46.573,
+   "type": "appear",
+   "el": "particles",
+   "label": "confetti",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 46.64,
+   "type": "appear",
+   "el": "pill",
+   "label": "CREDIT MASTER KO DO",
+   "x": 540.0,
+   "y": 1372.0,
+   "fs": 0,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 47.407,
+   "type": "appear",
+   "el": "host",
+   "label": "host_happy",
+   "x": null,
+   "y": 1856.0,
+   "fs": 0,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 49.107,
+   "type": "appear",
+   "el": "pill",
+   "label": "uske saaye se bada mat bano",
+   "x": 470.0,
+   "y": 1620.0,
+   "fs": 0,
+   "amp": 0.42,
+   "scale": 1.0
+  },
+  {
+   "t": 50.54,
+   "type": "appear",
+   "el": "flash",
+   "label": "50.54",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.34,
+   "scale": 1.0
+  },
+  {
+   "t": 50.573,
+   "type": "appear",
+   "el": "flash",
+   "label": "50.57",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.32,
+   "scale": 1.0
+  },
+  {
+   "t": 50.607,
+   "type": "appear",
+   "el": "flash",
+   "label": "50.61",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.26,
+   "scale": 1.0
+  },
+  {
+   "t": 50.64,
+   "type": "appear",
+   "el": "flash",
+   "label": "50.64",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.17,
+   "scale": 1.0
+  },
+  {
+   "t": 50.84,
+   "type": "appear",
+   "el": "text",
+   "label": "Log kamyabi",
+   "x": 540.0,
+   "y": 820.0,
+   "fs": 68,
+   "amp": 0.4,
+   "scale": 1.0
+  },
+  {
+   "t": 50.84,
+   "type": "appear",
+   "el": "text",
+   "label": "bhool jate hain...",
+   "x": 540.0,
+   "y": 910.0,
+   "fs": 68,
+   "amp": 0.4,
+   "scale": 1.0
+  },
+  {
+   "t": 52.207,
+   "type": "appear",
+   "el": "text",
+   "label": "lekin apni",
+   "x": 540.0,
+   "y": 1055.0,
+   "fs": 68,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 52.207,
+   "type": "appear",
+   "el": "text",
+   "label": "BEIZZATI",
+   "x": 540.0,
+   "y": 1162.0,
+   "fs": 96,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 52.207,
+   "type": "appear",
+   "el": "text",
+   "label": "kabhi nahi bhoolte.",
+   "x": 540.0,
+   "y": 1295.0,
+   "fs": 66,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 53.807,
+   "type": "appear",
+   "el": "host",
+   "label": "host_worried",
+   "x": 330.0,
+   "y": 1830.0,
+   "fs": 0,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 55.54,
+   "type": "appear",
+   "el": "transition",
+   "label": "punch",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.5,
+   "scale": 1.0
+  },
+  {
+   "t": 55.54,
+   "type": "appear",
+   "el": "flash",
+   "label": "55.54",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.34,
+   "scale": 1.0
+  },
+  {
+   "t": 55.573,
+   "type": "appear",
+   "el": "flash",
+   "label": "55.57",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.32,
+   "scale": 1.0
+  },
+  {
+   "t": 55.607,
+   "type": "appear",
+   "el": "flash",
+   "label": "55.61",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.26,
+   "scale": 1.0
+  },
+  {
+   "t": 55.64,
+   "type": "appear",
+   "el": "flash",
+   "label": "55.64",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.17,
+   "scale": 1.0
+  },
+  {
+   "t": 55.74,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.74",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.18,
+   "scale": 1.0
+  },
+  {
+   "t": 55.773,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.77",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.29,
+   "scale": 1.0
+  },
+  {
+   "t": 55.807,
+   "type": "appear",
+   "el": "text",
+   "label": "YEH THI",
+   "x": 540.0,
+   "y": 1318.0,
+   "fs": 36,
+   "amp": 0.37,
+   "scale": 1.0
+  },
+  {
+   "t": 55.807,
+   "type": "appear",
+   "el": "big",
+   "label": "LAW ONE",
+   "x": 540.0,
+   "y": 1426.0,
+   "fs": 116,
+   "amp": 0.37,
+   "scale": 1.013
+  },
+  {
+   "t": 55.807,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.81",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.39,
+   "scale": 1.0
+  },
+  {
+   "t": 55.84,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.84",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.49,
+   "scale": 1.0
+  },
+  {
+   "t": 55.873,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.87",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.51,
+   "scale": 1.0
+  },
+  {
+   "t": 55.907,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.91",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.41,
+   "scale": 1.0
+  },
+  {
+   "t": 55.94,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.94",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.31,
+   "scale": 1.0
+  },
+  {
+   "t": 55.973,
+   "type": "appear",
+   "el": "glitch",
+   "label": "55.97",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.2,
+   "scale": 1.0
+  },
+  {
+   "t": 56.64,
+   "type": "appear",
+   "el": "text",
+   "label": "Fouquet ki zindagi qaid mein khatam hui.",
+   "x": 540.0,
+   "y": 1570.0,
+   "fs": 33,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 56.64,
+   "type": "appear",
+   "el": "text",
+   "label": "Apne master ko kabhi neecha mat dikhao.",
+   "x": 540.0,
+   "y": 1622.0,
+   "fs": 35,
+   "amp": 0.38,
+   "scale": 1.0
+  },
+  {
+   "t": 57.373,
+   "type": "appear",
+   "el": "text",
+   "label": "WAQT \u2014 aur bhi nahi hai.",
+   "x": 540.0,
+   "y": 1704.0,
+   "fs": 30,
+   "amp": 0.46,
+   "scale": 1.0
+  },
+  {
+   "t": 57.973,
+   "type": "appear",
+   "el": "text",
+   "label": "LAW 02  \u2014  NEVER TRUST FRIENDS TOO MUCH",
+   "x": 540.0,
+   "y": 1800.0,
+   "fs": 19,
+   "amp": 0.41,
+   "scale": 1.0
+  },
+  {
+   "t": 58.607,
+   "type": "appear",
+   "el": "glitch",
+   "label": "58.61",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.22,
+   "scale": 1.0
+  },
+  {
+   "t": 58.64,
+   "type": "appear",
+   "el": "glitch",
+   "label": "58.64",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 58.673,
+   "type": "appear",
+   "el": "glitch",
+   "label": "58.67",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.44,
+   "scale": 1.0
+  },
+  {
+   "t": 58.707,
+   "type": "appear",
+   "el": "glitch",
+   "label": "58.71",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.44,
+   "scale": 1.0
+  },
+  {
+   "t": 58.74,
+   "type": "appear",
+   "el": "glitch",
+   "label": "58.74",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.33,
+   "scale": 1.0
+  },
+  {
+   "t": 58.773,
+   "type": "appear",
+   "el": "glitch",
+   "label": "58.77",
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "amp": 0.22,
+   "scale": 1.0
+  }
+ ],
+ "derived": [
+  {
+   "t": 0.32,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.034",
+   "amp": 0.85,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 0.6,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.012",
+   "amp": 0.3,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 6.47,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.024",
+   "amp": 0.6,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 7.04,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.010",
+   "amp": 0.25,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 26.55,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.012",
+   "amp": 0.3,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 29.52,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.040",
+   "amp": 1.0,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 31.32,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.028",
+   "amp": 0.7,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 46.36,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.010",
+   "amp": 0.25,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 56.36,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.034",
+   "amp": 0.85,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  },
+  {
+   "t": 58.54,
+   "type": "impact",
+   "el": "camera",
+   "label": "punch0.012",
+   "amp": 0.3,
+   "x": null,
+   "y": null,
+   "fs": 0,
+   "scale": 1.0
+  }
+ ],
+ "captions": [
+  {
+   "t": 0.35,
+   "beat": 1,
+   "cue": 0,
+   "text": "RUK JAO!",
+   "kw": [
+    "RUK",
+    "JAO"
+   ]
+  },
+  {
+   "t": 0.897,
+   "beat": 1,
+   "cue": 1,
+   "text": "Agar aap apne boss se",
+   "kw": []
+  },
+  {
+   "t": 2.224,
+   "beat": 1,
+   "cue": 2,
+   "text": "zyada SMART hain...",
+   "kw": [
+    "SMART"
+   ]
+  },
+  {
+   "t": 3.551,
+   "beat": 1,
+   "cue": 3,
+   "text": "to yeh video aapki",
+   "kw": []
+  },
+  {
+   "t": 4.723,
+   "beat": 1,
+   "cue": 4,
+   "text": "JOB bacha sakti hai.",
+   "kw": [
+    "JOB"
+   ]
+  },
+  {
+   "t": 6.47,
+   "beat": 2,
+   "cue": 0,
+   "text": "The 48 Laws of Power",
+   "kw": [
+    "48",
+    "POWER"
+   ]
+  },
+  {
+   "t": 8.0,
+   "beat": 2,
+   "cue": 1,
+   "text": "LAW No. 1",
+   "kw": [
+    "LAW",
+    "1"
+   ]
+  },
+  {
+   "t": 8.67,
+   "beat": 2,
+   "cue": 2,
+   "text": "NEVER OUTSHINE",
+   "kw": [
+    "NEVER",
+    "OUTSHINE"
+   ]
+  },
+  {
+   "t": 9.913,
+   "beat": 2,
+   "cue": 3,
+   "text": "THE MASTER.",
+   "kw": [
+    "MASTER"
+   ]
+  },
+  {
+   "t": 11.29,
+   "beat": 3,
+   "cue": 0,
+   "text": "FRANCE \u00b7 1661",
+   "kw": [
+    "FRANCE",
+    "1661"
+   ]
+  },
+  {
+   "t": 12.597,
+   "beat": 3,
+   "cue": 1,
+   "text": "Nicolas Fouquet",
+   "kw": [
+    "Nicolas",
+    "Fouquet"
+   ]
+  },
+  {
+   "t": 14.261,
+   "beat": 3,
+   "cue": 2,
+   "text": "king ka finance minister",
+   "kw": [
+    "finance",
+    "minister"
+   ]
+  },
+  {
+   "t": 16.757,
+   "beat": 3,
+   "cue": 3,
+   "text": "ne ek aisa palace banwaya...",
+   "kw": [
+    "palace"
+   ]
+  },
+  {
+   "t": 20.03,
+   "beat": 4,
+   "cue": 0,
+   "text": "...ke har mehman kehta:",
+   "kw": [
+    "mehman"
+   ]
+  },
+  {
+   "t": 21.55,
+   "beat": 4,
+   "cue": 1,
+   "text": "\u201cYeh to KING se bhi",
+   "kw": [
+    "KING"
+   ]
+  },
+  {
+   "t": 22.69,
+   "beat": 4,
+   "cue": 2,
+   "text": "zyada ROYAL hai!\u201d",
+   "kw": [
+    "ROYAL"
+   ]
+  },
+  {
+   "t": 24.25,
+   "beat": 5,
+   "cue": 0,
+   "text": "King muskuraya.",
+   "kw": [
+    "King"
+   ]
+  },
+  {
+   "t": 25.52,
+   "beat": 5,
+   "cue": 1,
+   "text": "Tareef ki.",
+   "kw": []
+  },
+  {
+   "t": 26.337,
+   "beat": 5,
+   "cue": 2,
+   "text": "Lekin andar...",
+   "kw": []
+  },
+  {
+   "t": 27.517,
+   "beat": 5,
+   "cue": 3,
+   "text": "JALAN ne aag pakad li.",
+   "kw": [
+    "JALAN"
+   ]
+  },
+  {
+   "t": 29.57,
+   "beat": 6,
+   "cue": 0,
+   "text": "Aur kuch hafton baad?",
+   "kw": [
+    "hafton"
+   ]
+  },
+  {
+   "t": 30.86,
+   "beat": 6,
+   "cue": 1,
+   "text": "FOUQUET GIRAFTAR.",
+   "kw": [
+    "GIRAFTAR"
+   ]
+  },
+  {
+   "t": 32.24,
+   "beat": 6,
+   "cue": 2,
+   "text": "Baaki zindagi JAIL mein.",
+   "kw": [
+    "JAIL"
+   ]
+  },
+  {
+   "t": 34.78,
+   "beat": 6,
+   "cue": 3,
+   "text": "Sirf ek palace ki wajah se.",
+   "kw": [
+    "palace"
+   ]
+  },
+  {
+   "t": 36.77,
+   "beat": 7,
+   "cue": 0,
+   "text": "Law No. 1 ka matlab:",
+   "kw": [
+    "Law"
+   ]
+  },
+  {
+   "t": 38.141,
+   "beat": 7,
+   "cue": 1,
+   "text": "master ko kabhi",
+   "kw": [
+    "master"
+   ]
+  },
+  {
+   "t": 39.256,
+   "beat": 7,
+   "cue": 2,
+   "text": "INSECURE mat karo.",
+   "kw": [
+    "INSECURE"
+   ]
+  },
+  {
+   "t": 40.627,
+   "beat": 7,
+   "cue": 3,
+   "text": "Usay lagta hai tumhari kamyabi",
+   "kw": [
+    "kamyabi"
+   ]
+  },
+  {
+   "t": 42.856,
+   "beat": 7,
+   "cue": 4,
+   "text": "uska inaam hai.",
+   "kw": [
+    "inaam"
+   ]
+  },
+  {
+   "t": 44.39,
+   "beat": 8,
+   "cue": 0,
+   "text": "Talent dikhao...",
+   "kw": [
+    "Talent"
+   ]
+  },
+  {
+   "t": 45.546,
+   "beat": 8,
+   "cue": 1,
+   "text": "lekin CREDIT master ko do.",
+   "kw": [
+    "CREDIT"
+   ]
+  },
+  {
+   "t": 47.241,
+   "beat": 8,
+   "cue": 2,
+   "text": "Smart raho \u2014",
+   "kw": [
+    "Smart"
+   ]
+  },
+  {
+   "t": 48.012,
+   "beat": 8,
+   "cue": 3,
+   "text": "magar uske saaye se bada mat bano.",
+   "kw": [
+    "saaye"
+   ]
+  },
+  {
+   "t": 50.59,
+   "beat": 9,
+   "cue": 0,
+   "text": "Log KAMYABI bhool jate hain...",
+   "kw": [
+    "KAMYABI"
+   ]
+  },
+  {
+   "t": 52.5,
+   "beat": 9,
+   "cue": 1,
+   "text": "lekin BEIZZATI?",
+   "kw": [
+    "BEIZZATI"
+   ]
+  },
+  {
+   "t": 53.62,
+   "beat": 9,
+   "cue": 2,
+   "text": "Beizzati kabhi nahi bhoolte.",
+   "kw": [
+    "Beizzati"
+   ]
+  },
+  {
+   "t": 55.59,
+   "beat": 10,
+   "cue": 0,
+   "text": "Yeh thi LAW ONE.",
+   "kw": [
+    "LAW",
+    "ONE"
+   ]
+  },
+  {
+   "t": 57.22,
+   "beat": 10,
+   "cue": 1,
+   "text": "Agli law?",
+   "kw": [
+    "Agli"
+   ]
+  },
+  {
+   "t": 57.84,
+   "beat": 10,
+   "cue": 2,
+   "text": "Woh aur zyada KHATARNAK hai.",
+   "kw": [
+    "KHATARNAK"
+   ]
+  },
+  {
+   "t": 59.78,
+   "beat": 10,
+   "cue": 3,
+   "text": "FOLLOW karo... warna.",
+   "kw": [
+    "FOLLOW"
+   ]
+  }
+ ],
+ "beats": [
+  {
+   "t": 0.3,
+   "n": 1,
+   "kind": "hook",
+   "trans": "punch"
+  },
+  {
+   "t": 6.42,
+   "n": 2,
+   "kind": "title",
+   "trans": "slide"
+  },
+  {
+   "t": 11.24,
+   "n": 3,
+   "kind": "story",
+   "trans": "whoosh"
+  },
+  {
+   "t": 19.98,
+   "n": 4,
+   "kind": "story",
+   "trans": "whoosh"
+  },
+  {
+   "t": 24.2,
+   "n": 5,
+   "kind": "danger",
+   "trans": "flash"
+  },
+  {
+   "t": 29.52,
+   "n": 6,
+   "kind": "shock",
+   "trans": "slam"
+  },
+  {
+   "t": 36.72,
+   "n": 7,
+   "kind": "teach",
+   "trans": "whoosh"
+  },
+  {
+   "t": 44.34,
+   "n": 8,
+   "kind": "bright",
+   "trans": "slide"
+  },
+  {
+   "t": 50.54,
+   "n": 9,
+   "kind": "quote",
+   "trans": "flash"
+  },
+  {
+   "t": 55.54,
+   "n": 10,
+   "kind": "end",
+   "trans": "punch"
+  }
+ ]
+}

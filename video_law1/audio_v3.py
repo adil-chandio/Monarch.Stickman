@@ -18,7 +18,7 @@ from timeline_v4 import BEATS, TOTAL
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "v3out")
-SFX_DIR = os.path.join(ROOT, "audio_v4", "sfx_gh")
+SFX_DIR = os.path.join(ROOT, "audio_v4", "sfx_py")
 os.makedirs(OUT, exist_ok=True)
 FF = "/tmp/v/lib/python3.11/site-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
 SR = 48000

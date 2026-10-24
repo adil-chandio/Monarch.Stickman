@@ -1,5 +1,24 @@
 # Law 1 — "Never Outshine the Master" · v3 (cinematic, no-brand build)
 
+> **v7 (current build — `Law1_v7_CINEMATIC_9x16.mp4`, 63.33 s)**
+> - **The GitHub SFX pack is gone.** `sfx_pack.py` and `audio_v4/sfx_gh/` are
+>   deleted; nothing from that library reaches the mix any more.
+> - **All sound design is synthesised in numpy** by `sfx_synth2.py` — 76
+>   one-shots, each built as *layers* the way a sound designer builds a hit:
+>   saturated pitch-gliding sub + body knock + filtered-noise crack + FM ring +
+>   tail rumble. Risers and whooshes are spectral sweeps (noise through a
+>   bandpass whose centre slides, crossfaded segment by segment), bells and
+>   dings are FM, the sparkle layer is stacked partials, and applause is layered
+>   claps. Every sound is rendered to `audio_v4/sfx_py/` with its sync point.
+> - **Phone-speaker presence.** A pure-sub hit is inaudible on a phone, so the
+>   low family (slam / impact / boom / bass / rumble) gets an extra body knock,
+>   crack and air layer plus a mid-band tilt. Measured spectra went from ~99 %
+>   energy below 120 Hz to ~75 % with a real 2–6 kHz crack on top.
+> - Voice still 100 % dry, music reverb 6 %, SFX 3 % of a 0.7 s IR. Voice leads
+>   the music by 14.8 dB and the SFX by 12.0 dB in the 300–3 kHz speech band.
+> - Master −12.1 LUFS / −1.0 dBTP, LRA 1.8 LU. Picture unchanged from v6 (the
+>   hooded narrator, no branding), audio rebuilt and remuxed.
+
 > **v6 (current build — `Law1_v6_CINEMATIC_9x16.mp4`, 63.33 s)**
 > - **The white circle-face mascots are gone.** Every `char_happy/think/worried`
 >   slot now shows the hooded narrator from the reference art

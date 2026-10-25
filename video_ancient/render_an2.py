@@ -42,6 +42,7 @@ from render_v3 import (anamorphic, bloom, chroma, draw_caption, draw_overlay,
                        exposure_breathe, leak, light_sweep, vignette_pulse,
                        weave, whip_blur, zoom_blur)
 from timeline_an import BEATS, TOTAL
+from events_an import EVENTS, DUR as EV_DUR
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "out")
@@ -287,6 +288,326 @@ def ink_wipe(a, b, p):
 
 
 
+
+
+# ------------------------------------------------------------------ inserts
+def _ins_base(dark=False):
+    return Image.new("RGB", (W, H), NIGHT) if dark else paper_bg()
+
+
+def crop_sprite(name, fx0, fy0, fx1, fy1, h):
+    """A deliberate close crop of a sprite — how the inserts get their angle."""
+    im = sprite(name)
+    w0, h0 = im.size
+    box = (int(fx0 * w0), int(fy0 * h0), int(fx1 * w0), int(fy1 * h0))
+    sub = im.crop(box)
+    k = h / max(1, sub.height)
+    return sub.resize((max(1, int(sub.width * k)), int(h)), Image.LANCZOS)
+
+
+def put_crop(base, name, box_frac, h, cx=None, bottom=None, cy=None, flip=False,
+             silhouette=None):
+    im = crop_sprite(name, *box_frac, h)
+    if flip:
+        im = im.transpose(Image.FLIP_LEFT_RIGHT)
+    if silhouette:
+        flat = Image.new("RGBA", im.size, tuple(silhouette) + (255,))
+        flat.putalpha(im.getchannel("A"))
+        im = flat
+    x = int(cx - im.width / 2) if cx is not None else 0
+    y = int(bottom - im.height) if bottom is not None else int(cy - im.height / 2)
+    base.paste(im, (x, y), im)
+
+
+def crop_zoom(base, cx, cy, zoom):
+    """Re-frame an already-composed picture: a real camera move, not a sticker."""
+    w, h = W / zoom, H / zoom
+    x0 = max(0, min(W - w, cx - w / 2))
+    y0 = max(0, min(H - h, cy - h / 2))
+    return base.crop((int(x0), int(y0), int(x0 + w), int(y0 + h))).resize((W, H), Image.LANCZOS)
+
+
+def ins_moon(base, t):
+    base.paste(Image.new("RGB", (W, H), (22, 24, 34)))
+    d = ImageDraw.Draw(base, "RGBA")
+    rng = np.random.default_rng(3)
+    for i in range(90):
+        x, y = rng.integers(0, W), rng.integers(0, 1300)
+        r = rng.integers(1, 5)
+        a = 255 * (.35 + .65 * abs(math.sin(t * 2.4 + i)))
+        d.ellipse([x, y, x + r, y + r], fill=(226, 226, 234, int(a)))
+    halo(base, 600, 820, 560, (170, 190, 230), .35, .95)
+    put_s(base, "moon", cx=600, cy=820, w=760, shadow=False)
+    # the hills, as a pure dark shape, only at the very bottom of the frame
+    put_s(base, "env_hills", cx=540, bottom=2050, w=1600, opacity=.55,
+          shadow=False, silhouette=(28, 30, 40))
+
+
+def ins_teeth(base, t):
+    base.paste(paper_bg())
+    ImageDraw.Draw(base).rectangle([0, 1560, W, H], fill=(232, 228, 216))
+    # the head sits at ~0.84 / 0.30 of the sprite box: place it, then push in
+    put_s(base, "sabertooth", cx=-8, bottom=1720, h=900)
+    d = ImageDraw.Draw(base, "RGBA")
+    for i in range(3):
+        a = .16 * (1 - (t * 2.4 + i * .3) % 1)
+        d.rectangle([0, 0, W, H], fill=(198, 24, 44, int(46 * a)))
+    base.paste(crop_zoom(base, 556, 1030, 2.15))
+
+
+def ins_flame(base, t):
+    base.paste(paper_bg())
+    halo(base, 540, 1100, 700, (255, 180, 100), .40, .95)
+    flame_stage(base, 540, 1720, 1500, t, 1.0, seed=77)
+
+
+def ins_eyes(base, t):
+    base.paste(Image.new("RGB", (W, H), (16, 16, 20)))
+    # our own wolf head, as a flat silhouette — only the eyes catch light
+    d0 = ImageDraw.Draw(base, "RGBA")
+    head = [(540, 620), (462, 500), (418, 660), (368, 664), (330, 880),
+            (368, 1092), (452, 1210), (540, 1244), (628, 1210), (712, 1092),
+            (750, 880), (712, 664), (662, 660), (618, 500)]
+    for off, col in ((30, (78, 84, 104, 255)), (0, (34, 36, 46, 255))):
+        d0.polygon([(x + off * .5, y + off * .5) for x, y in head], fill=col)
+    for sx in (-1, 1):                        # ears, catching a little light
+        d0.polygon([(540 + sx * 112, 700), (540 + sx * 150, 566),
+                    (540 + sx * 176, 706)],
+                   fill=(92, 98, 118, 255) if sx > 0 else (70, 76, 94, 255))
+    d = ImageDraw.Draw(base, "RGBA")
+    blink = 1.0 if (t % 2.2) > .16 else .10
+    for x, y, r in ((476, 880, 44), (606, 878, 42)):
+        halo(base, x, y, 190, (255, 198, 110), .55, .95)
+        d.ellipse([x - r, y - r * .62 * blink, x + r, y + r * .62 * blink],
+                  fill=(255, 236, 168, 245))
+        d.ellipse([x - r * .30, y - r * .40 * blink, x + r * .30, y + r * .40 * blink],
+                  fill=(26, 18, 14, 252))
+
+
+def ins_tusk(base, t):
+    base.paste(paper_bg())
+    ImageDraw.Draw(base).rectangle([0, 1600, W, H], fill=(226, 220, 206))
+    put_s(base, "mammoth", cx=430, bottom=1780, h=1250)
+    base.paste(crop_zoom(base, 430 + 1250 * 1.42 * .46, 1780 - 1250 * .70, 2.10))
+
+
+def ins_words(base, t):
+    """Three people, three bubbles, one idea travelling between them."""
+    base.paste(paper_bg())
+    halo(base, 540, 1200, 520, (255, 244, 222), .35, .95)
+    for i, (cx, h, fl) in enumerate(((180, 600, False), (540, 660, True),
+                                     (900, 590, False))):
+        put_s(base, "human_idle", cx=cx, bottom=1790, h=h, flip=fl, opacity=.98)
+        at = .05 + i * .16
+        a = eo(sg(t, at, .16))
+        if a > .02:
+            bx, by = cx - 44 + i * 30, 1180 - i * 44
+            w = 190
+            own_bubble(base, bx, by, w, 112, tail=(cx, 1430), opacity=a)
+            d = ImageDraw.Draw(base, "RGBA")
+            rng = np.random.default_rng(i + 4)
+            for k in range(3):
+                yy = by - 26 + k * 26
+                ww = w * rng.uniform(.35, .62)
+                d.rounded_rectangle([bx - ww / 2, yy, bx + ww / 2, yy + 11], 5,
+                                    fill=(32, 96, 176, int(220 * a)))
+
+
+def ins_sprout(base, t):
+    base.paste(paper_bg())
+    halo(base, 540, 1080, 620, (255, 226, 150), .34, .95)
+    put_s(base, "sprout", cx=540, bottom=1690, h=760 + 40 * math.sin(t * 3))
+    d = ImageDraw.Draw(base, "RGBA")
+    d.line([(40, 1692), (W - 40, 1692)], fill=(96, 78, 56, 90), width=6)
+    for i, x in enumerate((110, 250, 830, 970)):
+        put_s(base, "wheat", cx=x, bottom=1810, h=300, opacity=.55, shadow=False,
+              rot=(i - 1.5) * 3)
+
+
+INSERTS = {1: (ins_moon, 2.62, .34), 2: (ins_teeth, 2.05, .30),
+           3: (ins_flame, 2.42, .30), 4: (ins_eyes, 3.05, .28),
+           6: (ins_tusk, 2.62, .28), 8: (ins_words, 2.95, .30),
+           9: (ins_sprout, 2.62, .32)}
+
+
+def insert_frame(n, local_t):
+    fn = INSERTS[n][0]
+    base = _ins_base(n == 4)
+    fn(base, local_t)
+    if n == 4:
+        return apply_vignette(base, .42)
+    g = GRADE[n]
+    base = grade(base, g["tint"], g["amt"], g["contrast"], 1.0, g["sat"])
+    return apply_vignette(base, .30)
+
+
+# ------------------------------------------------------------------ edit pulse
+def snap_push(img, amp, p):
+    """A four-frame push: the frame jumps closer, then settles."""
+    if p <= 0 or p >= 1:
+        return img
+    k = math.exp(-p * 5.5) * amp
+    z = 1.0 + .042 * k
+    sh = (int(6 * k * math.sin(p * 24)), int(-3 * k))
+    return apply_camera(img, z, .5, .47, sh)
+
+
+def shock_ring(img, x, y, r, p, color=(198, 24, 44)):
+    """Two rings racing outward from a point — the 'something just landed' cue."""
+    if p <= 0 or p >= 1:
+        return img
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    for i, k in enumerate((1.0, .62)):
+        rr = r * (0.35 + 1.15 * eo(p)) * k
+        a = int(215 * (1 - p) ** 1.6 * (1.0 if i == 0 else .6))
+        w = max(3, int(11 * (1 - p) * (1.0 if i == 0 else .7)))
+        d.ellipse([x - rr, y - rr * .92, x + rr, y + rr * .92],
+                  outline=tuple(color) + (a,), width=w)
+    lay = lay.filter(ImageFilter.GaussianBlur(1.6))
+    img.paste(lay, (0, 0), lay)
+    return img
+
+
+def spark_pop(img, x, y, n, p, color=(255, 206, 96)):
+    """A quick hand-drawn sparkle: short rays, one soft core."""
+    if p <= 0 or p >= 1:
+        return img
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    grow = eo(p)
+    fade = (1 - p) ** 1.3
+    r0, r1 = 16 + 44 * grow, 54 + 150 * grow
+    for i in range(n):
+        a = (i / n) * math.tau + .35
+        d.line([(x + math.cos(a) * r0, y + math.sin(a) * r0 * .9),
+                (x + math.cos(a) * r1, y + math.sin(a) * r1 * .9)],
+               fill=tuple(color) + (int(230 * fade),), width=max(2, int(7 * fade)))
+    rr = 12 + 26 * grow
+    d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=(255, 252, 240, int(120 * fade)))
+    lay = lay.filter(ImageFilter.GaussianBlur(1.2))
+    img.paste(lay, (0, 0), lay)
+    return img
+
+
+def sliver_sweep(img, p, amp=.30):
+    """A thin band of light crossing the frame on a diagonal."""
+    if p <= 0 or p >= 1:
+        return img
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    x = -300 + p * (W + 600)
+    a = int(70 * math.sin(math.pi * p) * amp * 3)
+    for i in range(6):
+        o = i * 26
+        d.polygon([(x + o, 0), (x + o + 90, 0), (x + o - 210, H), (x + o - 300, H)],
+                  fill=(255, 250, 236, max(0, a - i * 9)))
+    lay = lay.filter(ImageFilter.GaussianBlur(22))
+    img.paste(lay, (0, 0), lay)
+    return img
+
+
+def lens(base, cx, cy, r, zoom, ring=INK):
+    """A magnifier: re-crops the finished frame inside a circular glass."""
+    if r < 12:
+        return
+    rr = int(max(20, min(r, cy - 6, H - cy - 6, cx - 6, W - cx - 6)))
+    half = rr / max(zoom, .01)
+    bx, by = max(0, min(W - 2 * half, cx - half)), max(0, min(H - 2 * half, cy - half))
+    box = (int(bx), int(by), int(bx + 2 * half), int(by + 2 * half))
+    crop = base.crop(box).resize((rr * 2, rr * 2), Image.LANCZOS)
+    mask = Image.new("L", (rr * 2, rr * 2), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, rr * 2 - 1, rr * 2 - 1], fill=255)
+    shadow = Image.new("RGBA", (rr * 2 + 60, rr * 2 + 60), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).ellipse([30, 34, rr * 2 + 30, rr * 2 + 30], fill=(40, 34, 30, 90))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(16))
+    base.paste(shadow, (int(cx - rr - 30), int(cy - rr - 30)), shadow)
+    base.paste(crop, (int(cx - rr), int(cy - rr)), mask)
+    d = ImageDraw.Draw(base, "RGBA")
+    d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], outline=(255, 253, 246, 245),
+              width=max(6, int(rr * .10)))
+    d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], outline=ring + (248,),
+              width=max(2, int(rr * .030)))
+    # specular arc so the eye reads glass, not a hole
+    for k, a in ((1, 150), (2, 70)):
+        d.arc([cx - rr + 8 * k, cy - rr + 8 * k, cx + rr - 8 * k, cy + rr - 8 * k],
+              200, 262, fill=(255, 255, 252, a), width=max(3, int(rr * .05)))
+
+
+def slice_wipe(a, b, p, bands=5):
+    """Vertical bands trade places in alternating directions — a real edit cut."""
+    p = cl(p)
+    if p <= 0:
+        return a.copy()
+    if p >= 1:
+        return b.copy()
+    out = a.copy()
+    bw = W // bands + 1
+    for i in range(bands):
+        x0 = i * bw
+        k = cl((p - i * .07) / (1 - (bands - 1) * .07))
+        if k <= 0:
+            continue
+        hh = int(H * eo(k))
+        y0 = 0 if i % 2 == 0 else H - hh
+        out.paste(b.crop((x0, y0, min(W, x0 + bw), y0 + hh)),
+                  (x0, y0), None)
+    cut = int(W * p)
+    d = ImageDraw.Draw(out, "RGBA")
+    d.rectangle([cut - 5, 0, cut + 5, H], fill=(24, 24, 28, int(120 * (1 - p))))
+    return out
+
+
+def apply_events(img, n, tl):
+    """Read the pulse sheet and stamp its picture half onto the frame."""
+    for e in EVENTS:
+        if e["beat"] != n:
+            continue
+        p = (tl - (e["t"] - BEATS[n - 1]["start"])) / EV_DUR[e["kind"]]
+        if not (0 <= p <= 1):
+            continue
+        k = e["kind"]
+        if k == "snap":
+            img = snap_push(img, e.get("amp", 1.0), p)
+        elif k == "ring":
+            col = {"red": RED, "gold": (201, 155, 44)}.get(e.get("color", "red"), RED)
+            img = shock_ring(img, e["x"], e["y"], e["r"], p, col)
+        elif k == "spark":
+            img = spark_pop(img, e["x"], e["y"], e.get("n", 6), p)
+        elif k == "sweep":
+            img = sliver_sweep(img, p)
+        elif k == "pulse":
+            img = grade(img, (255, 246, 232), .10 * math.sin(math.pi * p),
+                        1.0 + .10 * math.sin(math.pi * p), 1.0, 1.0 + .18 * math.sin(math.pi * p))
+    return img
+
+
+def ribbon(img, t, n):
+    """Segmented chapter line at the bottom: 10 ticks, the played part in gold."""
+    d = ImageDraw.Draw(img)
+    dark = n == 10
+    y = H - 24
+    x0, x1 = 54, W - 54
+    span = x1 - x0
+    d.rounded_rectangle([x0, y, x1, y + 3], 2, fill=(30, 32, 38) if dark else (223, 219, 211))
+    prog = cl(t / max(TOTAL, .001))
+    d.rounded_rectangle([x0, y, x0 + int(span * prog), y + 3], 2,
+                        fill=GOLD_L if dark else GOLD)
+    for i, b in enumerate(BEATS):
+        bx = x0 + int(span * (b["start"] / TOTAL))
+        live = t >= b["start"] - .01
+        hh = 7 if live else 5
+        d.rounded_rectangle([bx - 1, y - hh + 1, bx + 1, y + 3], 1,
+                            fill=(255, 214, 112) if live and dark else
+                            ((201, 155, 44) if live else (206, 202, 194)))
+
+
+# ------------------------------------------------------------------ lens plan
+# (cx, cy, r, zoom, in, out) — zoom stays >= 2.4 so the glass shows a *detail*
+LENS = {5: (812, 1516, 138, 2.50, 2.10, 3.20),
+        9: (330, 1580, 130, 2.45, 1.40, 2.42)}
+
+
 # ------------------------------------------------------------------ staging
 GL = 1700          # the ground line every scene stands on
 HERO = 520         # a main subject's height
@@ -422,9 +743,14 @@ def env_band(base, name, bottom, opacity=1.0, feather=90, blur=0.0, flip=False,
     # the band's own bottom edge would draw a hard line inside the frame: carry
     # the last ground row down to the canvas edge instead
     if ground_fill and bottom < H:
-        strip = im.crop((0, im.height - 6, im.width, im.height))
-        strip = strip.resize((im.width, H - bottom + 6), Image.LANCZOS)
-        base.paste(strip, (int((W - w) / 2), bottom - 6), strip)
+        a_last = np.asarray(im.getchannel("A")).astype(np.int16)
+        rows = np.where((a_last > 200).mean(axis=1) > .55)[0]
+        y_last = int(rows[-1]) if len(rows) else im.height - 1
+        y0 = max(0, y_last - 10)
+        src = im.crop((0, y0, im.width, max(y0 + 1, y_last - 1)))
+        src.putalpha(Image.new("L", src.size, 255))      # opaque: no pale seam
+        strip = src.resize((im.width, H - bottom + 10), Image.LANCZOS)
+        base.paste(strip, (int((W - w) / 2), bottom - 10), strip)
 
 
 def label(base, txt, cx, cy, fill=(38, 49, 66), size=26, at=None, t=0, track=3):
@@ -847,15 +1173,26 @@ def compose(t: float) -> Image.Image:
             idx = i
     b = BEATS[idx]
     tl = t - b["start"]
-    img = scene_frame(b["n"], tl)
+
+    # hit-stop: on every impact the picture holds two frames while the edit
+    # keeps breathing — the cheapest way to make a hit feel expensive
+    tl_scene = tl
+    for at, _amp, _dec in SHAKE.get(b["n"], []):
+        if 0 <= tl - at < 2.0 / FPS:
+            tl_scene = at
+    img = scene_frame(b["n"], tl_scene)
 
     if idx > 0:
         prev = BEATS[idx - 1]
         p = (t - (b["start"] - TRANS_W * .5)) / TRANS_W
         if 0 <= p <= 1:
             a = scene_frame(prev["n"], prev["dur"] + (t - b["start"]) + .05)
-            kind = "ink" if b["n"] in (3, 7) else b["trans"]
-            img = ink_wipe(a, img, p) if kind == "ink" else transition(a, img, b["trans"], p)
+            if b["n"] in (3, 7):
+                img = ink_wipe(a, img, p)
+            elif b["n"] in (4, 9):
+                img = slice_wipe(a, img, p)
+            else:
+                img = transition(a, img, b["trans"], p)
             if b["trans"] in ("slide", "whoosh"):
                 img = whip_blur(img, math.sin(math.pi * cl(p)) * .55)
             if b["trans"] == "slam":
@@ -868,6 +1205,33 @@ def compose(t: float) -> Image.Image:
         k = min(1.0, ic / .030)
         img = chroma(img, int(round(1 + 3 * k)))
         img = zoom_blur(img, .42 * k)
+
+    in_insert = False
+    if b["n"] in INSERTS:
+        _fn, at, ln = INSERTS[b["n"]]
+        if at <= tl <= at + ln:
+            in_insert = True
+            u = (tl - at) / ln
+            ins = insert_frame(b["n"], tl)
+            if u < .22:                      # whip into the insert
+                img = zoom_blur(vlib.flash(ins, WHITE, .22 * (1 - u / .22)), .55 * (1 - u / .22))
+            elif u > .80:                    # and whip back out
+                k = (u - .80) / .20
+                img = zoom_blur(vlib.flash(ins, WHITE, .18 * k), .65 * k)
+            else:
+                img = ins
+
+    if not in_insert:
+        img = apply_events(img, b["n"], tl)
+
+    # the magnifier: a detail reveal, so the eye has something new to find
+    if b["n"] in LENS:
+        cx, cy, r, zoom, t_in, t_out = LENS[b["n"]]
+        if t_in <= tl <= t_out:
+            grow = eo(sg(tl, t_in, .34)) * (1 - eo(sg(tl, t_out - .28, .28)))
+            rr = r * (grow * 1.04 + .02) * (1 + .05 * math.sin((tl - t_in) * 9))
+            zz = 1.0 + (zoom - 1.0) * min(1.0, grow * 1.3)
+            lens(img, cx, cy, rr, zz)
 
     if b["n"] != 10:
         draw_caption(img, b, tl)
@@ -890,7 +1254,7 @@ def compose(t: float) -> Image.Image:
         img = vignette_pulse(img, min(1.0, ic / .030) * .7)
     img = weave(img, t, .8 if b["n"] != 10 else 1.2)
     img = exposure_breathe(img, t)
-    draw_overlay(img, t, TOTAL, b["n"])
+    ribbon(img, t, b["n"])
     img = apply_grain(img, int(t * FPS), .05)
     return img
 

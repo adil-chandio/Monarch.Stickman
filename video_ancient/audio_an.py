@@ -37,6 +37,37 @@ from timeline_an import BEATS, TOTAL
 music_sh.BEATS = BEATS
 sfx_sh.B = {b["n"]: b["start"] for b in BEATS}
 
+from events_an import EVENTS          # the same pulse sheet the picture uses
+
+
+def event_cues(total: float) -> np.ndarray:
+    """Ticks, rings and sweeps that land exactly on the picture's one-second pulse.
+
+    Deliberately quiet (-30 dB and under): the narration owns the mix, these only
+    confirm what the eye just saw. Nothing is placed where the voice is dense.
+    """
+    n = A.T(total)
+    out = np.zeros((n, 2), dtype=np.float32)
+    pans = (-.22, 0.0, .22, -.12, .12)
+    for i, e in enumerate(EVENTS):
+        if e["t"] >= total - .05:
+            continue
+        pan = pans[i % len(pans)]
+        k = e["kind"]
+        seed = 700 + i
+        if k == "snap":
+            A.place(out, P.impact(root_hz=58, dur=.42, bright=.28, seed=seed), e["t"],
+                    gain=.030 * e.get("amp", 1.0), pan=pan * .3)
+        elif k == "ring":
+            A.place(out, P.marker(freq=494, dur=.30, seed=seed), e["t"], gain=.016, pan=pan)
+        elif k == "spark":
+            A.place(out, P.marker(freq=1046, dur=.16, seed=seed), e["t"], gain=.013, pan=pan)
+        elif k == "sweep":
+            A.place(out, P.whoosh(dur=.38, up=True, seed=seed), e["t"], gain=.014, pan=pan)
+        elif k == "pulse":
+            A.place(out, P.marker(freq=330, dur=.34, seed=seed), e["t"], gain=.012, pan=pan)
+    return out
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "out")
 VOICE_DIR = os.path.join(ROOT, "audio_sh")
@@ -70,6 +101,7 @@ def build() -> str:
     n = A.T(total)
     music = music_sh.build(total)[:n]
     fx = sfx_sh.build(total)[:n]
+    fx = fx + event_cues(total)[:n]
 
     voice_env = load_voice(total)
     if voice_env is None:

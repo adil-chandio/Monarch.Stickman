@@ -115,6 +115,28 @@ The narration is the spine now (`script_vo.md`, generated per beat into
 The four knapping strikes of beat 5 still sit on their frames, because the scene
 reads its own local cue times (`.75 / 1.55 / 2.35 / 3.15 s` into the beat).
 
+### v4 — "never still for a second"
+
+A single **pulse sheet** (`events_an.py`) now drives both picture and sound:
+45 timed beats over 50.27 s (≈0.9 per second), each one a `snap` (4-frame push),
+`ring` (shockwave), `spark` (radial sparkle), `sweep` (light sliver) or `pulse`.
+
+| new edit tool | what it does |
+|---|---|
+| `apply_events()` | reads the pulse sheet and stamps its picture half on the frame |
+| `snap_push()` | the edit punches in and settles — a cut feels like a cut |
+| `shock_ring()` / `spark_pop()` | two rings / short rays exactly where something happened |
+| `sliver_sweep()` | a band of light crosses the frame to reset the eye |
+| **hit-stop** | on every impact the *picture* holds 2 frames while the edit keeps moving |
+| `slice_wipe()` | vertical bands trade places (beats 4 and 9) |
+| **insert shots** | seven 0.3 s close-ups cut into the middle of long beats: the moon, the sabertooth's jaw, the flame, wolf eyes in the dark, the tusk, three mouths talking, the sprout |
+| `lens()` | a real magnifier (zoomed glass, ink rim, specular arc) on the spear head and the sprout |
+| `ribbon()` | segmented 10-tick progress line, chapter marks the played part in gold |
+| event sound | `audio_an.event_cues()` places a quiet tick/ring/whoosh on the *same* 45 timestamps |
+
+Every insert is built from our own sprites (`crop_zoom()` re-frames a composed picture,
+so a close-up is a camera move rather than a sticker).
+
 ## 5. Rebuild
 
 ```bash

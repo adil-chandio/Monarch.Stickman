@@ -19,3 +19,6 @@ sfx_v9.py
 fonts
 assets
 audio_v9
+
+# intermediate renders kept out of git
+out/AncientHumans_V4_9x16.mp4

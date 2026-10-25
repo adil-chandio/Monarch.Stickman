@@ -1,3 +1,5 @@
+**Ancient topic, two cuts:** `video_ancient/` — same **Law 1 style** (paper + blue caption bar + host + stamps), and `video_survive/` — the cinematic prehistoric cut. Both 46 s · 9:16 · easy Urdnglish.
+
 **New film:** `video_survive/` — *How Ancient Humans Survived*, 46 s · 9:16 · easy Urdnglish (`video_survive/out/Survive_AncientHumans_9x16.mp4`, see `video_survive/README.md`)
 
 # 👑 MonarchVoice — The 48 Laws of Power (Easy Urdnglish Deep Storytelling Audiobook)

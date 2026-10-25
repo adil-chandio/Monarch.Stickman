@@ -1,0 +1,16 @@
+out/*.wav
+out/ancient_silent.mp4
+out/still_*.jpg
+vlib.py
+render_v3.py
+probe.py
+timeline_v4.py
+premium_audio.py
+audio_v3.py
+audio_v9.py
+audio_v10.py
+sfx_v9.py
+fonts
+assets
+audio_v9
+__pycache__

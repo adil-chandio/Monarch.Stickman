@@ -1,0 +1,87 @@
+{
+ "01_host_character_sheet": [
+  "host_idle",
+  "host_point",
+  "host_think",
+  "host_cheer"
+ ],
+ "02_ancient_human_poses": [
+  "human_idle",
+  "human_pair",
+  "human_crouch",
+  "human_kneel",
+  "human_kneel2",
+  "human_triumph"
+ ],
+ "03_fire_elements": [
+  "fire_candle",
+  "fire_camp",
+  "fire_bonfire",
+  "embers",
+  "sparks",
+  "torch",
+  "fire_ring",
+  "smoke_curl",
+  "flame_core",
+  "extra09"
+ ],
+ "04_stone_tools_props": [
+  "hammer_stone",
+  "spear",
+  "knife",
+  "pot_lid",
+  "bow",
+  "flint_core",
+  "hide_cloak",
+  "bone_tool",
+  "basket",
+  "pot"
+ ],
+ "05_environment": [
+  "env_cave",
+  "env_cave_inside",
+  "env_hills",
+  "env_forest",
+  "env_field",
+  "env_night",
+  "env_river",
+  "env_plain"
+ ],
+ "06_animals": [
+  "mammoth",
+  "sabertooth",
+  "wolf",
+  "deer",
+  "vulture",
+  "boar",
+  "rabbit"
+ ],
+ "07_effects_ui_shapes": [
+  "ui_panel",
+  "ui_outline",
+  "ui_stamp_frame",
+  "ui_ribbon",
+  "ui_arrow_curve",
+  "ui_arrow",
+  "ui_burst_ring",
+  "ui_speedlines",
+  "ui_dust",
+  "ui_sparkle",
+  "ui_streaks",
+  "ui_spotlight"
+ ],
+ "08_small_props_nature": [
+  "wheat",
+  "sprout",
+  "seeds",
+  "rocks_small",
+  "boulder",
+  "moon",
+  "sun",
+  "stars",
+  "smoke",
+  "droplets",
+  "footprints",
+  "firewood"
+ ]
+}

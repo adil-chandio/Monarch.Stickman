@@ -1,6 +1,12 @@
+# generated audio / video / stills (the finished MP4 is committed on purpose)
 out/*.wav
 out/ancient_silent.mp4
+out/ancient2_silent.mp4
 out/still_*.jpg
+out/s2_*.jpg
+__pycache__/
+
+# shared engine + font + asset symlinks into video_law1 (not part of this film)
 vlib.py
 render_v3.py
 probe.py
@@ -13,4 +19,3 @@ sfx_v9.py
 fonts
 assets
 audio_v9
-__pycache__

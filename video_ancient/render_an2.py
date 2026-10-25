@@ -144,17 +144,146 @@ ALIAS = {"axe_hand": "hammer_stone", "human_walk_spear": "human_pair",
          "human_throw": "human_pair"}
 
 
-def host_stage(base, pose, cx=232, bottom=1830, h=520, opacity=1.0, bob=0.0,
-               scale=1.0, rot=0.0, glow=True):
-    """The narrator, from our own character sheet: idle / point / think / cheer."""
-    name = {"idle": "host_idle", "point": "host_point", "think": "host_think",
-            "cheer": "host_cheer", "worried": "host_think", "happy": "host_cheer"}[pose]
-    if opacity <= .01:
+
+
+# ------------------------------------------------------------------ premium fx
+def motes(base, t, n=16, seed=5, area=(0, 300, W, 1500), color=(214, 200, 176),
+          alpha=110, spread=1.0):
+    """Dust in the light: slow specks at several depths, each on its own drift."""
+    d = ImageDraw.Draw(base, "RGBA")
+    rng = np.random.default_rng(seed)
+    for i in range(n):
+        x0, y0 = rng.uniform(area[0], area[2]), rng.uniform(area[1], area[3])
+        sp = rng.uniform(.5, 1.7) * spread
+        r = rng.uniform(1.6, 4.6)
+        x = (x0 + t * 12 * sp + math.sin(t * .8 + i) * 14) % (area[2] - area[0]) + area[0]
+        y = (y0 - t * 20 * sp + math.sin(t * .55 + i * 2) * 10) % (area[3] - area[1]) + area[1]
+        a = int(alpha * (.35 + .65 * abs(math.sin(t * .6 + i))))
+        d.ellipse([x - r, y - r, x + r, y + r], fill=color + (a,))
+
+
+def birds(base, t, cx, cy, n=3, color=(48, 46, 50), scale=1.0, opacity=.55):
+    """A few far birds circling — the cheapest way to make a sky feel alive."""
+    if opacity <= .02:
         return
-    if glow:
-        halo(base, cx, bottom - h * .30, h * .55, (255, 236, 200), .30 * opacity, .9)
-    put_s(base, name, cx=cx, bottom=bottom + bob, h=int(h * scale), opacity=opacity,
-          rot=rot, shadow=True)
+    d = ImageDraw.Draw(base, "RGBA")
+    for i in range(n):
+        a = t * (.45 + .07 * i) + i * 2.1
+        rx, ry = 90 * scale + 26 * i, 34 * scale + 9 * i
+        x = cx + math.cos(a) * rx
+        y = cy + math.sin(a) * ry - i * 8
+        flap = math.sin(t * 7 + i * 1.7)
+        w, h = 17 * scale * (1 + .1 * i), 6 * scale
+        wing = h * (.5 + .9 * flap)
+        d.line([(x - w, y - wing), (x, y), (x + w, y - wing)],
+               fill=color + (int(200 * opacity),), width=max(2, int(3 * scale)), joint="curve")
+
+
+def fg_grass(base, t, color=(30, 42, 30), opacity=.85, y=H + 10, n=26, seed=9,
+             hmin=60, hmax=150, sides=True):
+    """Foreground reeds: a dark silhouette that gives the frame depth."""
+    d = ImageDraw.Draw(base, "RGBA")
+    rng = np.random.default_rng(seed)
+    for i in range(n):
+        if sides:
+            x = rng.uniform(-20, W * .22) if i % 2 else rng.uniform(W * .78, W + 20)
+        else:
+            x = rng.uniform(-20, W + 20)
+        h = rng.uniform(hmin, hmax)
+        sway = math.sin(t * 1.5 + i * .7) * h * .10
+        w = rng.uniform(5, 11)
+        d.polygon([(x - w, y), (x + w, y),
+                   (x + w * .25 + sway, y - h), (x - w * .5 + sway, y - h * .82)],
+                  fill=color + (int(255 * opacity),))
+
+
+def smoke_plume(base, x, y, t, strength=1.0, seed=3, w=90, rise=420):
+    """Soft smoke rising and widening — used at the fire and the cave mouth."""
+    if strength <= .02:
+        return
+    lay = Image.new("RGBA", (w * 4, int(rise * 1.5)), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    rng = np.random.default_rng(seed)
+    for i in range(7):
+        u = ((t * .35 + i / 7) % 1.0)
+        yy = lay.height - u * lay.height
+        rr = w * (.22 + .5 * u) * strength
+        xx = lay.width / 2 + math.sin(u * 6 + i) * w * .35 + rng.uniform(-6, 6)
+        a = int(90 * (1 - u) * strength)
+        d.ellipse([xx - rr, yy - rr, xx + rr, yy + rr], fill=(222, 214, 200, a))
+    lay = lay.filter(ImageFilter.GaussianBlur(w * .10))
+    base.paste(lay, (int(x - lay.width / 2), int(y - lay.height)), lay)
+
+
+def annot_circle(base, cx, cy, rx, ry=None, p=1.0, color=RED, w=7, jitter=3.2):
+    """A hand-drawn circle that draws itself on (chalk on paper)."""
+    if p <= .02:
+        return
+    ry = rx * .78 if ry is None else ry
+    d = ImageDraw.Draw(base, "RGBA")
+    steps = max(8, int(72 * cl(p)))
+    pts = []
+    rng = np.random.default_rng(21)
+    for i in range(steps):
+        a = -math.pi * .62 + (i / 72) * math.tau * 1.03
+        j = rng.uniform(-jitter, jitter)
+        pts.append((cx + math.cos(a) * (rx + j), cy + math.sin(a) * (ry + j)))
+    if len(pts) > 1:
+        d.line(pts, fill=color + (235,), width=w, joint="curve")
+
+
+def annot_arrow(base, x0, y0, x1, y1, p=1.0, color=RED, w=6, bow=60):
+    """A drawn arrow with a bow in it; `p` is how much of it is on screen."""
+    if p <= .02:
+        return
+    d = ImageDraw.Draw(base, "RGBA")
+    mx, my = (x0 + x1) / 2 + bow * .35, (y0 + y1) / 2 - bow
+    pts = []
+    n = 26
+    for i in range(n + 1):
+        u = i / n * cl(p)
+        pts.append(((1 - u) ** 2 * x0 + 2 * (1 - u) * u * mx + u ** 2 * x1,
+                    (1 - u) ** 2 * y0 + 2 * (1 - u) * u * my + u ** 2 * y1))
+    d.line(pts, fill=color + (230,), width=w, joint="curve")
+    if p > .92:
+        (ax, ay), (bx, by) = pts[-2], pts[-1]
+        ang = math.atan2(by - ay, bx - ax)
+        for side in (-1, 1):
+            d.line([(bx, by), (bx - 34 * math.cos(ang + side * .48),
+                               by - 34 * math.sin(ang + side * .48))],
+                   fill=color + (230,), width=w)
+
+
+def drift(base, dx, fn):
+    """Run a drawing pass on a copy, then shift it — cheap parallax."""
+    lay = Image.new("RGB", (W, H), WHITE)
+    lay.paste(base, (0, 0))
+    fn(lay)
+    base.paste(lay, (int(dx), 0))
+
+
+def ink_wipe(a, b, p):
+    """A rough brush edge sweeps the old scene away (paper-tear feel)."""
+    p = cl(p)
+    if p <= 0:
+        return a.copy()
+    if p >= 1:
+        return b.copy()
+    m = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(m)
+    edge = int(-260 + p * (W + 520))
+    rng = np.random.default_rng(12)
+    pts = [(-40, -40)]
+    x = -40
+    while x < W + 40:
+        pts.append((x, edge + rng.integers(-26, 26)))
+        x += 26
+    pts += [(W + 40, -40), (W + 40, H + 40), (-40, H + 40)]
+    d.polygon(pts, fill=255)
+    m = m.filter(ImageFilter.GaussianBlur(9))
+    out = b.copy()
+    out.paste(a, (0, 0), m)
+    return out
 
 
 
@@ -263,7 +392,7 @@ def flame_stage(base, cx, ground, h, t, hot=1.0, seed=0, ring=False):
 
 
 def env_band(base, name, bottom, opacity=1.0, feather=90, blur=0.0, flip=False,
-             scale=1.08):
+             scale=1.08, ground_fill=True):
     """An environment sprite as a full-width band with a soft paper edge.
 
     Used bare, the sheet's environment art reads as a pasted rectangle; feathering
@@ -288,7 +417,14 @@ def env_band(base, name, bottom, opacity=1.0, feather=90, blur=0.0, flip=False,
     im.putalpha(Image.fromarray(a))
     if blur:
         im = im.filter(ImageFilter.GaussianBlur(blur))
-    base.paste(im, (int((W - w) / 2), int(bottom - h)), im)
+    top = int(bottom - h)
+    base.paste(im, (int((W - w) / 2), top), im)
+    # the band's own bottom edge would draw a hard line inside the frame: carry
+    # the last ground row down to the canvas edge instead
+    if ground_fill and bottom < H:
+        strip = im.crop((0, im.height - 6, im.width, im.height))
+        strip = strip.resize((im.width, H - bottom + 6), Image.LANCZOS)
+        base.paste(strip, (int((W - w) / 2), bottom - 6), strip)
 
 
 def label(base, txt, cx, cy, fill=(38, 49, 66), size=26, at=None, t=0, track=3):
@@ -301,33 +437,33 @@ def label(base, txt, cx, cy, fill=(38, 49, 66), size=26, at=None, t=0, track=3):
 #  scenes
 # =====================================================================
 def s1(base, t, dur):
-    """20,000 years ago: stars, a moon, hills, a cave, one human, and the hook."""
+    """20,000 years ago: a sky, a cave, one human — and the question."""
     d = ImageDraw.Draw(base, "RGBA")
     rng = np.random.default_rng(7)
-    for _ in range(54):
-        sx, sy = rng.integers(40, W - 40), rng.integers(360, 1000)
+    for i in range(58):
+        sx, sy = rng.integers(40, W - 40), rng.integers(330, 1010)
         r = rng.integers(2, 6)
-        d.ellipse([sx, sy, sx + r, sy + r], fill=(208, 202, 190, 200))
-    put_s(base, "moon", cx=836, cy=760, w=250, shadow=False)
-    env_band(base, "env_hills", bottom=1430, opacity=.95)
-    put_s(base, "env_cave", cx=520, bottom=1750, w=800)
-    put_s(base, "human_idle", cx=900, bottom=1706, h=430,
-          opacity=eo(sg(t, .45, .8)))
-    dust(base, 900, 1690, .5 * eo(sg(t, 2.2, .5)), 300)
-    if t < 2.2:
-        a = cl(sg(t, .02, .10)) * (1 - cl(sg(t, 1.9, .32)))
-        if a > .02:
-            for k in range(2):
-                glow_ring(base, 552, 560, 150 + 300 * eo(sg(t, k * .12, .6)), 5, RED,
-                          .30 * (1 - sg(t, k * .12, .6)) * a)
-    host_stage(base, "think", cx=236, bottom=1868 + math.sin(t * 2.2) * 5, h=600,
-               opacity=cl(sg(t, 0, .14)))
-    if t > 1.2:
-        pill(base, 236, 1500, "AAP", fill=(38, 49, 66), size=30,
-             opacity=eo(sg(t, 1.2, .4)), track=2)
+        tw_ = .45 + .55 * abs(math.sin(t * 2.1 + i))
+        d.ellipse([sx, sy, sx + r, sy + r], fill=(206, 200, 188, int(210 * tw_)))
+    put_s(base, "moon", cx=836, cy=706, w=256, shadow=False)
+    halo(base, 836, 706, 300, (255, 246, 226), .20 + .05 * math.sin(t * 2.4), .95)
+    birds(base, t + 2, 300, 560, 3, scale=.85, opacity=.42)
+    env_band(base, "env_hills", bottom=1420, opacity=.95)
+    # the cave breathes smoke, the human just stands there
+    smoke_plume(base, 470, 1620, t, .55, seed=4, w=80, rise=300)
+    put_s(base, "env_cave", cx=500, bottom=1752, w=820)
+    bob = math.sin(t * 1.9) * 3
+    put_s(base, "human_idle", cx=886, bottom=1706 + bob, h=446,
+          opacity=eo(sg(t, .35, .7)))
+    halo(base, 886, 1620, 300, (255, 248, 232), .18, .95)
+    motes(base, t, 14, seed=5, area=(120, 900, 1000, 1700))
+    annot_circle(base, 886, 1486, 196, 262, sg(t, .95, .55), RED, 6)
+    if t > 1.9:
+        annot_arrow(base, 700, 1300, 790, 1450, sg(t, 1.9, .35), RED, 5, bow=40)
     if t > 2.4:
-        pill(base, 560, 1755, "NA GHAR · NA KAPDE", fill=RED, size=26,
+        pill(base, 552, 1755, "NA GHAR · NA KAPDE", fill=RED, size=26,
              opacity=eo(sg(t, 2.4, .4)), padx=22)
+    motes(base, t + 1, 8, seed=11, area=(300, 400, 1000, 1200), alpha=70)
 
 
 def s2(base, t, dur):
@@ -335,25 +471,29 @@ def s2(base, t, dur):
     env_band(base, "env_hills", bottom=1330, opacity=.60)
     d = ImageDraw.Draw(base, "RGBA")
     d.rectangle([0, 1240, W, H], fill=(234, 228, 214, 255))
-    put_s(base, "human_crouch", cx=270, bottom=1706, h=420,
+    put_s(base, "human_crouch", cx=258, bottom=1706, h=420 - 18 * eio(sg(t, .2, 2.6)),
           opacity=eo(sg(t, .3, .6)))
     k = eio(sg(t, .2, 2.6))
-    put_s(base, "sabertooth", cx=int(1050 - 250 * k), bottom=int(1712 - 14 * k),
-          h=int(390 + 250 * k), flip=True, opacity=eo(sg(t, .2, .7)))
+    # it steps in: each step kicks dust
+    for i, at in enumerate((.35, 1.05, 1.75, 2.45)):
+        if t > at:
+            dust(base, int(1050 - 250 * eio(sg(t, .2, 2.6))) - 90 + i * 10, 1706,
+                 .30 * (1 - sg(t, at, .45)), 250 * (1 + .4 * k))
+    x_in = int(1060 - 268 * k)
+    put_s(base, "sabertooth", cx=x_in, bottom=int(1712 - 14 * k),
+          h=int(392 + 246 * k), flip=True, opacity=eo(sg(t, .2, .7)))
+    halo(base, x_in - 60, int(1560 - 40 * k), 240, (198, 24, 44), .16 * eo(sg(t, .6, 1.2)), .95)
     if t > 2.2:
-        speedlines(base, 640, 1080, eo(sg(t, 2.2, .5)) * .8, 760, 620)
-        dust(base, 700, 1700, .55 * eo(sg(t, 2.2, .5)), 460)
+        speedlines(base, 620, 1080, eo(sg(t, 2.2, .5)) * .8, 780, 640)
+        dust(base, 700, 1700, .5 * eo(sg(t, 2.2, .5)), 470)
     if t > .18:
         a = eo(sg(t, .18, .40))
-        warn_badge(base, 560, 940, 250, a * (1 + .04 * math.sin(t * 9)), t)
+        warn_badge(base, 556, 946, 256, a * (1 + .04 * math.sin(t * 9)), t)
     if t > 2.35:
         a = eo(sg(t, 2.35, .45))
         stamp(base, 600, 640, "ZINDA?", ang=-8, color=RED, size=96, scale=.9 + .1 * a,
               opacity=a)
-    host_stage(base, "think", cx=252, bottom=1868, h=600, bob=math.sin(t * 2) * 4)
-    if t > 1.3:
-        pill(base, 252, 1470, "HAR SUBHA", fill=(38, 49, 66), size=28,
-             opacity=eo(sg(t, 1.3, .4)), track=2)
+    fg_grass(base, t, (36, 46, 34), .55, n=22, hmin=70, hmax=170)
 
 
 def s3(base, t, dur):
@@ -372,20 +512,23 @@ def s3(base, t, dur):
             d.line(pts, fill=(255, 255, 240, int(255 * k)), width=6)
             b2 = Image.new("RGB", (W, H), WHITE)
             base.paste(Image.blend(base, b2, .46 * k))
-    if t > .30:
-        env_band(base, "env_cave_inside", bottom=1860, opacity=.92, feather=150)
+    env_band(base, "env_cave_inside", bottom=1860, opacity=.92, feather=150)
     ignite = eo(sg(t, .85, .7))
+    halo(base, 690, 1420, 520, (255, 190, 110), .30 * ignite, .95)
     flame_stage(base, 690, GL, 620, t, hot=max(.05, ignite), seed=3)
-    put_s(base, "human_kneel", cx=360, bottom=1712, h=430,
+    smoke_plume(base, 690, 1180, t, .75 * ignite, seed=8, w=110, rise=460)
+    put_s(base, "human_kneel", cx=340, bottom=1712, h=436,
           opacity=eo(sg(t, .2, .6)))
-    host_stage(base, "cheer", cx=1010, bottom=1860, h=520,
-               opacity=eo(sg(t, 1.5, .5)), scale=.96 + .04 * eo(sg(t, 1.5, .5)))
+    if t > .95:
+        annot_arrow(base, 470, 1520, 610, 1460, sg(t, .95, .40), RED, 6, bow=52)
+    motes(base, t, 12, seed=9, area=(80, 800, 1000, 1700), color=(240, 200, 150), alpha=120)
     if t > 1.5:
         pill(base, 350, 1240, "PEHLI AAG", fill=RED, size=30,
              opacity=eo(sg(t, 1.5, .4)), track=3)
     if t > 2.9:
         a = eo(sg(t, 2.9, .5))
         stamp(base, 545, 720, "DOST", ang=7, color=RED, size=96, scale=.9 + .1 * a, opacity=a)
+    fg_grass(base, t, (28, 26, 26), .40, n=18, hmin=60, hmax=130)
 
 
 def s4(base, t, dur):
@@ -393,25 +536,32 @@ def s4(base, t, dur):
     d = ImageDraw.Draw(base, "RGBA")
     d.rectangle([0, 1180, W, H], fill=(232, 223, 206, 255))
     rng = np.random.default_rng(11)
-    for _ in range(30):
+    for i in range(34):
         sx, sy = rng.integers(20, W - 20), rng.integers(300, 1160)
-        d.ellipse([sx, sy, sx + 4, sy + 4], fill=(176, 168, 156, 150))
-    halo(base, 540, 1360, 700, (255, 184, 110), .34, .95)
-    for r, op in ((640, .10), (470, .13)):
-        halo(base, 540, 1400, r, (255, 206, 140), op, .9)
-    flame_stage(base, 540, GL, 600, t, 1.0, seed=2)
-    put_s(base, "human_kneel", cx=210, bottom=1714, h=420, opacity=.98)
-    put_s(base, "human_kneel2", cx=862, bottom=1714, h=420, opacity=.98, flip=True)
-    put_s(base, "human_crouch", cx=690, bottom=1712, h=360, opacity=.94, flip=True)
-    put_s(base, "wolf", cx=int(1016 + 6 * math.sin(t * 2)), bottom=1660, h=250,
-          silhouette=(26, 26, 30), opacity=.20 * eo(sg(t, 1.2, 1.0)))
+        a = 150 * (.5 + .5 * abs(math.sin(t * 1.8 + i)))
+        d.ellipse([sx, sy, sx + 4, sy + 4], fill=(176, 168, 156, int(a)))
+    for r, op in ((700, .30), (500, .14)):
+        halo(base, 540, 1400, r, (255, 190, 115), op, .95)
+    flame_stage(base, 540, GL, 610, t, 1.0, seed=2)
+    smoke_plume(base, 540, 1170, t, .5, seed=6, w=100, rise=380)
+    put_s(base, "human_kneel", cx=206, bottom=1714, h=422, opacity=.98)
+    put_s(base, "human_kneel2", cx=864, bottom=1714, h=422, opacity=.98, flip=True)
+    put_s(base, "human_crouch", cx=692, bottom=1712, h=362, opacity=.94, flip=True,
+          rot=2 * math.sin(t * 1.6))
+    # something waiting just outside the light
+    wx = int(1016 + 7 * math.sin(t * 2))
+    put_s(base, "wolf", cx=wx, bottom=1660, h=252, silhouette=(24, 24, 28),
+          opacity=.20 * eo(sg(t, 1.2, 1.0)))
+    for i, (sx, sy) in enumerate(((wx - 26, 1530), (wx + 8, 1528))):
+        d.ellipse([sx - 4, sy - 4, sx + 4, sy + 4],
+                  fill=(255, 226, 130, int(200 * eo(sg(t, 1.4, 1.0)))))
+    motes(base, t, 16, seed=13, area=(80, 900, 1000, 1700), color=(255, 214, 150), alpha=120)
     for i, (txt, col, at) in enumerate((("GARMI", RED, .35), ("ROSHNI", (201, 155, 44), .85),
                                         ("DARINDE DOOR", (38, 49, 66), 1.35))):
         if t > at:
             pill(base, 545, 402 + i * 62, txt, fill=col, size=27,
                  opacity=eo(sg(t, at, .35)), track=3)
-    host_stage(base, "think", cx=1004, bottom=1868, h=470,
-               opacity=.92 * eo(sg(t, .2, .6)))
+    fg_grass(base, t, (26, 24, 24), .35, n=16, hmin=60, hmax=120)
 
 
 def s5(base, t, dur):
@@ -421,13 +571,11 @@ def s5(base, t, dur):
     put_s(base, "boulder", cx=430, bottom=1760, w=560)
     put_s(base, "rocks_small", cx=180, bottom=1760, w=250, opacity=.95)
     put_s(base, "human_kneel2", cx=165, bottom=1740, h=450)
-    # the hammer swings down and lands on the stone, once per strike
     if hit < 0:
         swing = 0.0
     else:
         swing = eio(cl((t - (strikes[hit] - .26)) / .26))
     rot = -58 + 44 * swing
-    # held in the kneeling figure's hands, head landing on the stone's face
     put_s(base, "hammer_stone", cx=310 + 46 * swing, cy=int(1330 + 55 * swing),
           h=240, rot=rot, opacity=eo(sg(t, .30, .40)))
     d = ImageDraw.Draw(base, "RGBA")
@@ -444,10 +592,11 @@ def s5(base, t, dur):
                 d.line([(cx + math.cos(a) * r * .45, cy + math.sin(a) * r * .40),
                         (cx + math.cos(a) * r, cy + math.sin(a) * r * .82)],
                        fill=(232, 150, 40, int(255 * (1 - p))), width=6)
-            dust(base, 430, 1740, (1 - p) * .8, 400)
-    # ...and what comes out of it
-    put_s(base, "spear", cx=858, bottom=1758, h=430, rot=-10,
+            dust(base, 428, 1740, (1 - p) * .8, 400)
+    put_s(base, "spear", cx=806, bottom=1758, h=430, rot=-10,
           opacity=eo(sg(t, 1.85, .5)))
+    if t > 2.15:
+        annot_circle(base, 812, 1560, 132, 196, sg(t, 2.15, .5), RED, 6)
     if t > 1.25:
         a = eo(sg(t, 1.25, .45))
         stamp(base, 540, 690, "HATHIYAR", ang=-7, color=RED, size=84,
@@ -455,20 +604,39 @@ def s5(base, t, dur):
     if t > 3.0:
         pill(base, 300, 1180, "SHIKAAR", fill=(38, 49, 66), size=28,
              opacity=eo(sg(t, 3.0, .4)), track=3)
+    motes(base, t, 10, seed=17, area=(120, 900, 1000, 1600), color=(220, 200, 160), alpha=90)
 
 
 def s6(base, t, dur):
     """Alone weak, together lethal."""
     env_band(base, "env_plain", bottom=1560, opacity=.92, feather=70, blur=2)
     wx = int(1090 - 400 * eio(sg(t, .1, 3.6)))
-    put_s(base, "mammoth", cx=wx, bottom=int(1730 + 5 * math.sin(t * 4)),
-          h=530, flip=True, opacity=1.0)
-    dust(base, wx - 200, 1710, .55, 420)
+    step = math.sin(t * 5.4)
+    put_s(base, "mammoth", cx=wx, bottom=int(1730 + 4 * step),
+          h=530, rot=1.2 * step, flip=True, opacity=1.0)
+    dust(base, wx - 210, 1712, .45 + .12 * abs(step), 420)
     for i, (x, hh, fl) in enumerate(((170, 400, False), (330, 430, True), (80, 350, False))):
         put_s(base, "human_pair", cx=x, bottom=1720 + int(3 * math.sin(t * 6 + i)),
               h=hh, opacity=eo(sg(t, .7 + i * .1, .5)), flip=fl)
+    # the spear leaves the hunters' hands and crosses the frame
+    if .95 < t < 1.85:
+        u = cl((t - .95) / .9)
+        sx = 470 + 190 * u
+        sy = 1560 - 250 * math.sin(math.pi * u) - 30 * u
+        put_s(base, "spear", cx=int(sx), cy=int(sy), h=310, rot=-62 + 40 * u,
+              opacity=1.0, shadow=False)
+        for k in range(3):
+            lay_u = max(0, u - .04 * (k + 1))
+            d2 = ImageDraw.Draw(base, "RGBA")
+            d2.line([(470 + 190 * lay_u, 1560 - 210 * math.sin(math.pi * lay_u) - 40 * lay_u),
+                     (sx - 30, sy + 10)],
+                    fill=(180, 170, 156, int(110 - k * 30)), width=5 - k)
+    if 1.78 < t < 2.30:                      # the spear lands
+        p = sg(t, 1.78, .30)
+        halo(base, 672, 1480, 230, (255, 220, 170), .55 * (1 - p), .95)
+        dust(base, 668, 1700, (1 - p) * .75, 400)
     if t > 1.1:
-        speedlines(base, 700, 1280, eo(sg(t, 1.1, .5)) * .95, 820, 640)
+        speedlines(base, 760, 1320, eo(sg(t, 1.1, .5)) * .85, 820, 620)
     if t > 1.3:
         a = eo(sg(t, 1.3, .45))
         stamp(base, 600, 620, "JHUND", ang=-6, color=RED, size=96, scale=.9 + .1 * a,
@@ -476,6 +644,8 @@ def s6(base, t, dur):
     if t > 2.7:
         put_text_scaled(base, "KHATARNAAK", F(N9, 82), RED, 546, 1040, .98,
                         eo(sg(t, 2.7, .45)))
+    motes(base, t, 12, seed=19, area=(60, 800, 1020, 1650))
+    fg_grass(base, t, (34, 44, 32), .5, n=20, hmin=70, hmax=160)
 
 
 def s7(base, t, dur):
@@ -489,11 +659,16 @@ def s7(base, t, dur):
             put_s(base, "hide_cloak", cx=336, cy=cy, h=int(420 - 70 * fall),
                   rot=(1 - fall) * 6, opacity=min(1.0, fall * 1.8), shadow=False)
         else:
-            # worn: the vest lands on the torso and stays there
             put_s(base, "hide_cloak", cx=336, cy=1400, h=248, rot=-2, opacity=.98,
                   shadow=False)
-
+            put_s(base, "ui_sparkle", cx=336, cy=1300, w=150, opacity=.55,
+                  rot=t * 30, shadow=False)
     dust(base, 330, 1460, .5 * eo(sg(t, 1.05, .5)), 300)
+    halo(base, 640, 1500, 300, (255, 190, 120), .16 + .04 * math.sin(t * 3), .95)
+    motes(base, t + 2, 10, seed=12, area=(480, 1250, 900, 1700), color=(255, 200, 150),
+          alpha=140, spread=.7)
+    put_s(base, "human_kneel", cx=980, bottom=1690, h=280,
+          opacity=.60 * eo(sg(t, 2.2, .8)))
     if t > 1.5:
         a = eo(sg(t, 1.5, .42))
         stamp(base, 540, 700, "JACKET", ang=-7, color=RED, size=82,
@@ -501,18 +676,19 @@ def s7(base, t, dur):
     if t > 2.4:
         pill(base, 830, 1180, "GUFA = GHAR", fill=(38, 49, 66), size=28,
              opacity=eo(sg(t, 2.4, .4)), track=3)
-    put_s(base, "human_kneel", cx=1000, bottom=1690, h=280,
-          opacity=.60 * eo(sg(t, 2.2, .8)))
+    motes(base, t, 10, seed=23, area=(200, 900, 900, 1650), color=(240, 210, 170), alpha=100)
 
 
 def s8(base, t, dur):
     """Language — the weapon that is not a weapon."""
-    put_s(base, "human_pair", cx=250, bottom=1716, h=470, flip=True)
-    put_s(base, "human_idle", cx=830, bottom=1714, h=470, flip=False)
+    put_s(base, "human_pair", cx=230, bottom=1716, h=470, flip=True)
+    put_s(base, "human_idle", cx=846, bottom=1714, h=474, flip=False)
     for k in range(3):
         p = (t * .55 + k / 3) % 1.0
-        halo(base, 540, 1080, int(120 + 300 * p), (255, 236, 214),
+        halo(base, 545, 1090, int(130 + 300 * p), (255, 236, 214),
              (1 - p) * .22 * eo(sg(t, .3, .5)), .95)
+    if t > .55:
+        annot_arrow(base, 620, 1180, 470, 1240, sg(t, .55, .40), (32, 96, 176), 6, bow=34)
     if t > .6:
         a = eo(sg(t, .6, .4))
         own_bubble(base, 560, 950, 380, 190, tail=(430, 1090), opacity=a)
@@ -526,13 +702,16 @@ def s8(base, t, dur):
     if t > 3.0:
         pill(base, 540, 760, "SIKHANA", fill=(38, 49, 66), size=28,
              opacity=eo(sg(t, 3.0, .4)), track=3)
+    motes(base, t, 12, seed=29, area=(80, 700, 1000, 1650))
 
 
 def s9(base, t, dur):
     """Seeds to the first harvest — sunrise over a field."""
-    put_s(base, "sun", cx=540, cy=720, w=300, shadow=False)
+    suna = t * 1.3
+    put_s(base, "sun", cx=540, cy=720, w=300, rot=math.sin(suna) * 3, shadow=False)
     for r, op in ((420, .12), (600, .08)):
         halo(base, 540, 720, r, (255, 214, 130), op, .95)
+    birds(base, t + 4, 300, 560, 2, scale=.7, opacity=.38)
     env_band(base, "env_field", bottom=1870, opacity=.95, feather=110)
     for i in range(5):
         x = 128 + i * 208
@@ -542,16 +721,18 @@ def s9(base, t, dur):
           opacity=eo(sg(t, .45, .5)))
     put_s(base, "seeds", cx=620, cy=1120, w=210, rot=-8 + 6 * math.sin(t * 2.2),
           opacity=eo(sg(t, .9, .6)), shadow=False)
-    if t > 1.05:
-        put_s(base, "ui_arrow_curve", cx=452, cy=1310, w=190, rot=146,
-              opacity=.85 * eo(sg(t, 1.05, .5)), shadow=False)
-    put_s(base, "deer", cx=900, bottom=1620, h=230, opacity=.50 * eo(sg(t, 1.6, 1.0)))
+    if t > .95:
+        annot_arrow(base, 560, 1210, 400, 1420, sg(t, .95, .45), (32, 96, 176), 6, bow=46)
+    # the deer crosses without noticing us
+    dcx = int(980 - 70 * eio(sg(t, .8, 3.6)))
+    put_s(base, "deer", cx=dcx, bottom=1620 + int(3 * math.sin(t * 4)),
+          h=230, opacity=.50 * eo(sg(t, 1.6, 1.0)), flip=True)
     d = ImageDraw.Draw(base, "RGBA")
     for k in range(8):
         p = sg(t, .2 + k * .1, 1.2)
         if 0 < p < 1:
-            sx = 330 + (k - 4) * 26
-            d.ellipse([sx - 6, 1080 + p * 480, sx + 6, 1092 + p * 480],
+            sx = 620 + (k - 4) * 18
+            d.ellipse([sx - 6, 1000 + p * 420, sx + 6, 1012 + p * 420],
                       fill=(196, 150, 60, int(220 * (1 - p * .4))))
     if t > 1.35:
         a = eo(sg(t, 1.35, .45))
@@ -560,6 +741,7 @@ def s9(base, t, dur):
     if t > 2.9:
         pill(base, 700, 790, "BHOOKH KAM", fill=(38, 49, 66), size=26,
              opacity=eo(sg(t, 2.9, .4)), track=3)
+    motes(base, t, 14, seed=31, area=(60, 700, 1020, 1750), color=(255, 226, 160), alpha=95)
 
 
 def s10(base, t, dur):
@@ -573,6 +755,7 @@ def s10(base, t, dur):
     d.rounded_rectangle([646, 1236, 712, 1352], 12, fill=(226, 240, 255, 250))
     d.rounded_rectangle([654, 1248, 704, 1340], 8, fill=(120, 180, 250, 255))
     halo(base, 679, 1294, 210, (180, 215, 255), .80, .9)
+    motes(base, t, 16, seed=37, area=(100, 900, 1000, 1750), color=(150, 195, 255), alpha=80)
     if t > .5:
         put_text_scaled(base, "hum wahi insaan hain", F(S7, 58), WHITE, 540, 1010, .98,
                         eo(sg(t, .5, .5)))
@@ -671,7 +854,8 @@ def compose(t: float) -> Image.Image:
         p = (t - (b["start"] - TRANS_W * .5)) / TRANS_W
         if 0 <= p <= 1:
             a = scene_frame(prev["n"], prev["dur"] + (t - b["start"]) + .05)
-            img = transition(a, img, b["trans"], p)
+            kind = "ink" if b["n"] in (3, 7) else b["trans"]
+            img = ink_wipe(a, img, p) if kind == "ink" else transition(a, img, b["trans"], p)
             if b["trans"] in ("slide", "whoosh"):
                 img = whip_blur(img, math.sin(math.pi * cl(p)) * .55)
             if b["trans"] == "slam":

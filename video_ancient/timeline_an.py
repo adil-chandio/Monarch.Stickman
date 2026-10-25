@@ -72,9 +72,23 @@ BEATS = [
          cue_ts=[0.10, 1.35, 3.20]),
 ]
 
+# --- voice-driven re-time -------------------------------------------------
+# The narration is now the spine: a beat must be long enough to *finish* its line.
+# Durations below come from the measured voice takes (trimmed) plus a short tail.
+NEW_DUR = {1: 5.80, 4: 5.92, 6: 5.40, 7: 4.85}
+_t = 0.30
+for _b in BEATS:
+    _old = float(_b["dur"])
+    _new = float(NEW_DUR.get(_b["n"], _old))
+    if abs(_new - _old) > 1e-6:            # captions spread across the new length
+        _b["cue_ts"] = [round(c * _new / _old, 3) for c in _b["cue_ts"]]
+    _b["dur"] = round(_new, 3)
+    _b["start"] = round(_t, 3)
+    _t = round(_t + _new, 3)
+
 # cue_ts -> absolute times, the shape render_v3.draw_caption expects
 for _b in BEATS:
     _b["cue_times"] = [dict(t=t, text=c[0], kw=c[1])
                        for t, c in zip(_b["cue_ts"], _b["cues"])]
 
-TOTAL = round(BEATS[-1]["start"] + BEATS[-1]["dur"], 3)      # 46.0
+TOTAL = round(BEATS[-1]["start"] + BEATS[-1]["dur"], 3)

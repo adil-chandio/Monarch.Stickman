@@ -32,6 +32,11 @@ import premium_audio as P
 import sfx_sh
 from timeline_an import BEATS, TOTAL
 
+# The picture is now cut to the narration, so the score and the effects must be
+# laid against *this* timeline, not the fixed 46 s one they were written for.
+music_sh.BEATS = BEATS
+sfx_sh.B = {b["n"]: b["start"] for b in BEATS}
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(ROOT, "out")
 VOICE_DIR = os.path.join(ROOT, "audio_sh")

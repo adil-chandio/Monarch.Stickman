@@ -1,4 +1,4 @@
-# How Ancient Humans Survived — **our own art** (46 s · 9:16)
+# How Ancient Humans Survived — **our own art + narration** (50.3 s · 9:16)
 
 A film about the first humans, built from our own character sheets — not from
 the Law 1 drawings. The **style language** (cream paper, ink outlines, blue
@@ -81,13 +81,39 @@ existing 46.00 s mix (`out/mix_an.wav`) still fits frame-for-frame:
 | 9 | Beej boya → bhookh kam hui | sun, falling seeds, arrow, sprout, wheat field |
 | 10 | hum wahi insaan hain, SIRF TOOLS BADLE HAIN | night, silhouette with a phone glow, follow pill |
 
-## 4. Sound
+### What changed in this pass (v3)
 
-Unchanged from the approved mix: `out/mix_an.wav` (46.00 s, −14.1 LUFS, −1.3 dBTP),
-built by `audio_an.py` from the self-made `music_sh.wav` + `sfx_sh.wav` kit. The
-strike frames in beat 5 (`0.75 / 1.55 / 2.35 / 3.15 s`) are the same ones the SFX
-were cut to, and every beat boundary is still `0.30 / 4.60 / 9.20 / 14.30 / 18.60 /
-23.10 / 27.80 / 32.20 / 36.70 / 41.20`.
+- **The hooded host is gone.** He explained nothing the voice does not; every
+  frame is now the story itself.
+- **The voice carries it**: Urdu narration, Roman Urdnglish captions, cut to fit.
+- **More animation, frame by frame**: predators kick dust on every step and the
+  eyes in the dark blink, the mammoth walks with body roll and a spear now flies
+  and *lands* at its hide, the deer crosses the harvest, birds circle two skies,
+  smoke plumes rise from the cave and the fire, dust motes drift in the light,
+  firelight flickers on the faces (`motes`/`smoke_plume`/`birds`).
+- **Editorial language added**: hand-drawn red circles and arrows annotate the
+  human, the spear head and the seed → sprout idea; an ink-wipe (ragged paper
+  edge) replaces the plain wipe on the two chapter cuts; environment bands now
+  carry their ground colour to the bottom of frame instead of drawing a hard
+  horizontal line.
+
+## 4. Sound — narrated, voice-driven cut
+
+The narration is the spine now (`script_vo.md`, generated per beat into
+`audio_sh/raw/beatNN.wav`, cleaned into `audio_sh/beatNN.wav` at 48 kHz):
+
+- each take is silence-trimmed, then only the four takes that overrun their slot
+  are sped up (1.01–1.11×, inaudible) so **no word is ever cut**;
+- `timeline_an.py` grows the beats to fit their line (beat 1 → 5.80 s, 4 → 5.92 s,
+  6 → 5.40 s, 7 → 4.85 s), captions re-spread inside the new length, and every
+  later beat shifts — total 46.0 s → **50.27 s**;
+- `audio_an.py` re-lays the score and all 49 sound cues against that new timeline
+  (`music_sh.BEATS = BEATS`, `sfx_sh.B` remapped), normalises the voice to
+  −1.5 dBFS, sets the score 8 dB under it, ducks both with the voice envelope,
+  then masters to −14 LUFS / −1.5 dBTP.
+
+The four knapping strikes of beat 5 still sit on their frames, because the scene
+reads its own local cue times (`.75 / 1.55 / 2.35 / 3.15 s` into the beat).
 
 ## 5. Rebuild
 

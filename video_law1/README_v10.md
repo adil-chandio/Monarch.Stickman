@@ -1,6 +1,6 @@
 # Law 1 — v10: score-driven mix + cinema-layer picture
 
-> **Current build:** `v3out/MonarchVoice_Law1_v12_CINEMATIC_9x16.mp4` (v10 echo + v11 doubled-voice builds retired)
+> **Current build:** `v3out/MonarchVoice_Law1_v13_CINEMATIC_9x16.mp4` (v10 echo, v11 doubled voice, v12 synthetic-instrument builds retired)
 > 63.33 s · 1080×1920 · 30 fps · H.264 High 5.1 Mb/s + AAC 260 k · **41 MB**
 > **−13.9 LUFS / −1.0 dBTP / LRA 1.6** (ideal for YouTube/IG/Reels at −14)
 
@@ -191,3 +191,40 @@ ffmpeg -i <picture>.mp4 -i v3out/mix_v12.wav -map 0:v -c:v copy -map 1:a \
 
 `MUSIC_MODULE` selects the score (`music_v12` default, `music_v10` the old one),
 `MUSIC_UNDER` the level under the voice, `MIX_NAME` the output stem name.
+
+## v13 — the research applied: sampled instruments, designed SFX, measured master
+
+Full research and license notes: `SOUND_KIT_RESEARCH.md`. This is the first build
+that uses it.
+
+| | v12 | v13 |
+|---|---|---|
+| score source | `audio_v3.piano()` additive tones + detuned saws | **GeneralUser GS samples** via TinySoundFont (605× realtime, 0.09 s load) |
+| voicing | low pad | open voicing — root −12, third at pitch, fifth +12 |
+| sheen | none (bed died at 4 kHz) | celesta on the biggest beats |
+| energy below 120 Hz | **92 %** | **15.5 %** |
+| effects | one-shot blips | layered `impact` / `whoosh` / `marker` + **convolution tails**, per-cue root/seed/pan |
+| master | hand-rolled tilt + `np.tanh` | `pedalboard` EQ + `pyloudnorm` BS.1770 target + `BrickwallLimiter` true peak |
+
+### v13 QC (`MonarchVoice_Law1_v13_CINEMATIC_9x16.mp4`, 42 MB, 63.3 s)
+
+- **−14.1 LUFS · −1.3 dBTP · LRA 2.1 · 0 clipped samples**
+- stems: voice −19.9 · score −30.2 · accents −36.6 · keys −49.8 dBFS (pre-master)
+- **13 audible accent onsets**, each on a real animation event:
+  0.31 punch · 6.46 cut · 11.30 cut · 25.32 flame · 25.78 big word · 29.51 arrest ·
+  31.31 punch · 37.38 glint · 44.73 scales · 55.80 big word · 56.38 punch ·
+  57.09 end bell · 59.63 sparkle
+- narration unchanged (tightened clips, 75.8 % voiced, no doubled voice);
+  picture is `-c:v copy` from v12 — no re-render
+
+```bash
+python music_v13.py     # sampled score   -> v3out/music_v13.wav
+python sfx_v13.py       # designed accents -> v3out/sfx_v13.wav
+python audio_v13.py     # mix + master    -> v3out/mix_v13.wav (+ stems)
+ffmpeg -i <picture>.mp4 -i v3out/mix_v13.wav -map 0:v -c:v copy -map 1:a \
+       -c:a aac -b:a 256k -movflags +faststart -shortest out.mp4
+```
+
+Env: `MUSIC_UNDER` (score level under the voice, default 8 dB), `TARGET_LUFS`
+(−14.0), `CEILING_DB` (−1.5 — AAC adds ~0.2 dB of true-peak overshoot, so the
+WAV is cut lower than the −1.0 delivery ceiling on purpose).
